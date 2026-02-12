@@ -1,0 +1,319 @@
+/* Wrapper for the entire module content */
+.printing-module-wrapper {
+    display: flex;
+    flex-direction: column;
+    /* Use min-height to ensure it takes at least full height but grows with content */
+    min-height: 100%;
+    position: relative;
+}
+
+.printing-module-wrapper .page-header {
+    margin-bottom: 25px;
+    flex-shrink: 0;
+}
+
+.printing-module-wrapper .page-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 5px 0;
+}
+
+.printing-module-wrapper .page-header .subtitle {
+    color: #666;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* Container for the two main columns */
+.printing-module-container {
+    display: flex;
+    gap: 25px;
+    flex: 1;
+    /* Allow this section to take up available space */
+    align-items: flex-start;
+    /* Prevent stretching if content heights differ significantly, or 'stretch' to match heights */
+    flex-wrap: wrap;
+    /* Responsive wrapping */
+    margin-bottom: 25px;
+    /* Reduced from 80px since footer is static */
+}
+
+.printing-module-container .left-panel,
+.printing-module-container .right-panel {
+    background: #fff;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    border: 1px solid #f0f0f0;
+    display: flex;
+    flex-direction: column;
+}
+
+/* Left Panel Sizing */
+.printing-module-container .left-panel {
+    flex: 1;
+    /* Grow to fill space */
+    min-width: 350px;
+    /* Minimum width before wrapping */
+}
+
+.printing-module-container .left-panel h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 25px 0;
+    color: #222;
+}
+
+.printing-module-container .left-panel .form-group {
+    margin-bottom: 20px;
+}
+
+.printing-module-container .left-panel .form-group label {
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    margin-bottom: 8px;
+    color: #333;
+}
+
+.printing-module-container .left-panel .form-group label span.required {
+    color: #d9534f;
+    margin-left: 3px;
+}
+
+.printing-module-container .left-panel .form-group input {
+    width: 100%;
+    padding: 10px 12px;
+    border: 1px solid #e0e0e0;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    transition: all 0.2s;
+    background-color: #fff;
+    color: #333;
+    box-sizing: border-box;
+    /* Ensure padding doesn't affect width */
+}
+
+.printing-module-container .left-panel .form-group input:focus {
+    outline: none;
+    border-color: #0d1b42;
+    box-shadow: 0 0 0 3px rgba(13, 27, 66, 0.05);
+}
+
+.printing-module-container .left-panel .form-group input::placeholder {
+    color: #999;
+}
+
+.printing-module-container .left-panel .form-group .input-with-prefix {
+    position: relative;
+}
+
+.printing-module-container .left-panel .form-group .input-with-prefix .prefix {
+    position: absolute;
+    left: 12px;
+    top: 50%;
+    transform: translateY(-50%);
+    color: #666;
+    font-size: 0.9rem;
+}
+
+.printing-module-container .left-panel .form-group .input-with-prefix input {
+    padding-left: 28px;
+}
+
+.printing-module-container .left-panel .form-group .help-text {
+    display: block;
+    margin-top: 5px;
+    font-size: 0.75rem;
+    color: #888;
+}
+
+/* Right Panel Sizing */
+.printing-module-container .right-panel {
+    flex: 1;
+    min-width: 350px;
+    /* Optional: make it sticky if the left side is long, so preview is always visible */
+    /* position: sticky; 
+    top: 20px; */
+    height: fit-content;
+    /* Only take necessary height */
+}
+
+.printing-module-container .right-panel h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 20px 0;
+    color: #222;
+}
+
+/* Empty State */
+.printing-module-container .right-panel .empty-state-placeholder {
+    background-color: #dfe2e6;
+    border-radius: 6px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    padding: 60px 20px;
+    text-align: center;
+    color: #6c757d;
+    min-height: 300px;
+    /* Fixed minimum height for visual balance */
+    width: 100%;
+    box-sizing: border-box;
+}
+
+.printing-module-container .right-panel .empty-state-placeholder .placeholder-icon {
+    margin-bottom: 20px;
+    opacity: 0.6;
+}
+
+.printing-module-container .right-panel .empty-state-placeholder p {
+    color: #6c757d;
+    font-size: 0.9rem;
+    max-width: 250px;
+    line-height: 1.5;
+    margin: 0;
+}
+
+/* Generated State */
+.printing-module-container .right-panel .label-preview-content {
+    width: 100%;
+}
+
+.printing-module-container .right-panel .label-preview-content .label-card {
+    border: 1px solid #eee;
+    border-radius: 8px;
+    padding: 30px;
+    display: flex;
+    gap: 25px;
+    background-color: #fff;
+    box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
+    flex-wrap: wrap;
+    /* Wrap content on small screens */
+}
+
+.printing-module-container .right-panel .label-preview-content .label-card .qr-section {
+    flex-shrink: 0;
+}
+
+.printing-module-container .right-panel .label-preview-content .label-card .details-section {
+    flex: 1;
+    font-family: 'Courier New', monospace;
+    font-size: 0.9rem;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    gap: 6px;
+    word-break: break-all;
+    min-width: 200px;
+}
+
+.printing-module-container .right-panel .label-preview-content .label-card .details-section .detail-row strong {
+    font-weight: 700;
+    margin-right: 8px;
+    color: #000;
+}
+
+.printing-module-container .right-panel .label-preview-content .success-message {
+    margin-top: 20px;
+    color: #10b981;
+    font-weight: 500;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.95rem;
+}
+
+/* Action Bar Styles - Static flow */
+.action-bar {
+    background: #fff;
+    padding: 15px 25px;
+    border-radius: 8px;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.08);
+    /* Keep shadow for style or remove if preferred */
+    border: 1px solid #f0f0f0;
+    display: flex;
+    gap: 15px;
+    flex-wrap: wrap;
+    align-items: center;
+
+    /* Removed sticky positioning as requested */
+    margin-top: auto;
+    width: 100%;
+    box-sizing: border-box;
+    /* ensure it stays visible */
+    position: relative;
+    z-index: 1;
+}
+
+.action-bar button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.action-bar button svg {
+    stroke-width: 2;
+}
+
+/* Button Variants */
+.action-bar button.btn-primary {
+    background-color: #00bcd4;
+    color: white;
+}
+
+.action-bar button.btn-primary:hover {
+    background-color: #00acc1;
+}
+
+.action-bar button.btn-secondary {
+    background-color: #6c757d;
+    color: white;
+}
+
+.action-bar button.btn-secondary:hover {
+    background-color: #5a6268;
+}
+
+.action-bar button.btn-secondary.disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+.action-bar button.btn-outline {
+    background-color: white;
+    border: 1px solid #d1d5db;
+    color: #374151;
+}
+
+.action-bar button.btn-outline:hover {
+    background-color: #f9fafb;
+    border-color: #9ca3af;
+    color: #111;
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .printing-module-container {
+        flex-direction: column;
+    }
+
+    .printing-module-container .left-panel,
+    .printing-module-container .right-panel {
+        min-width: 100%;
+    }
+
+    .action-bar {
+        /* On narrow screens, standard behavior or full width at bottom if desired */
+        border-radius: 8px;
+    }
+}

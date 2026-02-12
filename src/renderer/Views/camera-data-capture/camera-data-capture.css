@@ -1,0 +1,478 @@
+/* Camera Data Capture Wrapper */
+.camera-capture-wrapper {
+    display: flex;
+    flex-direction: column;
+    min-height: 100%;
+    position: relative;
+}
+
+.camera-capture-wrapper .page-header {
+    margin-bottom: 25px;
+    flex-shrink: 0;
+}
+
+.camera-capture-wrapper .page-header h1 {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #1a1a1a;
+    margin: 0 0 5px 0;
+}
+
+.camera-capture-wrapper .page-header .subtitle {
+    color: #666;
+    font-size: 0.95rem;
+    margin: 0;
+}
+
+/* Main Container */
+.camera-capture-container {
+    display: flex;
+    gap: 25px;
+    flex: 1;
+    align-items: flex-start;
+    flex-wrap: wrap;
+}
+
+/* Camera Panel */
+.camera-panel {
+    flex: 2;
+    min-width: 400px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    border: 1px solid #f0f0f0;
+    display: flex;
+    flex-direction: column;
+}
+
+.camera-panel .panel-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+}
+
+.camera-panel .panel-header h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0;
+    color: #222;
+}
+
+.recording-indicator {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    color: #dc3545;
+    font-size: 0.8rem;
+    font-weight: 600;
+    letter-spacing: 0.5px;
+}
+
+.recording-dot {
+    width: 8px;
+    height: 8px;
+    background-color: #dc3545;
+    border-radius: 50%;
+    animation: pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes pulse {
+
+    0%,
+    100% {
+        opacity: 1;
+    }
+
+    50% {
+        opacity: 0.3;
+    }
+}
+
+/* Camera Feed */
+.camera-feed {
+    background: #dfe2e6;
+    border-radius: 6px;
+    aspect-ratio: 4/3;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+    overflow: hidden;
+    margin-bottom: 20px;
+}
+
+.camera-feed.capturing {
+    border: 3px solid #00bcd4;
+    animation: borderGlow 2s ease-in-out infinite;
+}
+
+@keyframes borderGlow {
+
+    0%,
+    100% {
+        border-color: #00bcd4;
+    }
+
+    50% {
+        border-color: #0097a7;
+    }
+}
+
+.camera-feed.paused {
+    background: #4a4a4a;
+}
+
+/* Camera Placeholder States */
+.camera-placeholder {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 20px;
+}
+
+.camera-placeholder.paused {
+    color: #fff;
+}
+
+.camera-placeholder.paused .paused-text {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: #fff;
+    letter-spacing: 2px;
+}
+
+.camera-placeholder.active {
+    position: relative;
+}
+
+.detection-box {
+    position: absolute;
+    width: 200px;
+    height: 200px;
+    border: 3px solid #00bcd4;
+    border-radius: 8px;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    animation: detectPulse 2s ease-in-out infinite;
+}
+
+@keyframes detectPulse {
+
+    0%,
+    100% {
+        transform: translate(-50%, -50%) scale(1);
+        opacity: 1;
+    }
+
+    50% {
+        transform: translate(-50%, -50%) scale(1.05);
+        opacity: 0.8;
+    }
+}
+
+/* Camera Controls */
+.camera-controls {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    align-items: center;
+}
+
+.camera-controls button {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    padding: 10px 18px;
+    border-radius: 6px;
+    font-size: 0.9rem;
+    font-weight: 500;
+    cursor: pointer;
+    transition: all 0.2s;
+    border: none;
+}
+
+.camera-controls button svg {
+    stroke-width: 2;
+}
+
+/* Button Variants */
+.btn-start {
+    background-color: #28a745;
+    color: white;
+}
+
+.btn-start:hover {
+    background-color: #218838;
+}
+
+.btn-pause {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-pause:hover {
+    background-color: #5a6268;
+}
+
+.btn-resume {
+    background-color: #6c757d;
+    color: white;
+}
+
+.btn-resume:hover {
+    background-color: #5a6268;
+}
+
+.btn-stop {
+    background-color: #dc3545;
+    color: white;
+}
+
+.btn-stop:hover {
+    background-color: #c82333;
+}
+
+.btn-outline {
+    background-color: white;
+    border: 1px solid #d1d5db;
+    color: #374151;
+}
+
+.btn-outline:hover {
+    background-color: #f9fafb;
+    border-color: #9ca3af;
+    color: #111;
+}
+
+/* Detection Panel */
+.detection-panel {
+    flex: 1;
+    min-width: 300px;
+    background: #fff;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    border: 1px solid #f0f0f0;
+    height: fit-content;
+}
+
+.detection-panel h3 {
+    font-size: 1.05rem;
+    font-weight: 600;
+    margin: 0 0 20px 0;
+    color: #222;
+}
+
+/* Detection Info */
+.detection-info {
+    display: flex;
+    flex-direction: column;
+    gap: 20px;
+}
+
+.info-section {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.info-section label {
+    font-size: 0.85rem;
+    font-weight: 600;
+    color: #555;
+}
+
+/* Status Badge */
+.status-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 14px;
+    border-radius: 6px;
+    font-size: 0.85rem;
+    font-weight: 600;
+    width: fit-content;
+}
+
+.status-badge.good {
+    background-color: #d4edda;
+    color: #155724;
+}
+
+.status-badge svg {
+    stroke-width: 2.5;
+}
+
+/* QR Code Display */
+.qr-code-display {
+    background-color: #e9ecef;
+    padding: 12px 16px;
+    border-radius: 6px;
+    font-family: 'Courier New', monospace;
+    font-size: 1rem;
+    font-weight: 600;
+    color: #333;
+    letter-spacing: 1px;
+}
+
+/* Confidence Display */
+.confidence-display {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+}
+
+.confidence-bar {
+    flex: 1;
+    height: 12px;
+    background-color: #e9ecef;
+    border-radius: 6px;
+    overflow: hidden;
+}
+
+.confidence-fill {
+    height: 100%;
+    background: linear-gradient(90deg, #0d47a1 0%, #1976d2 100%);
+    transition: width 0.3s ease;
+}
+
+.confidence-value {
+    font-size: 0.95rem;
+    font-weight: 700;
+    color: #333;
+    min-width: 50px;
+    text-align: right;
+}
+
+.confidence-label {
+    font-size: 0.75rem;
+    color: #666;
+    margin-top: -4px;
+}
+
+/* Detection Logs Section */
+.detection-logs-section {
+    background: #fff;
+    border-radius: 8px;
+    padding: 25px;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+    border: 1px solid #f0f0f0;
+    margin-top: 25px;
+}
+
+.detection-logs-section h3 {
+    font-size: 1.2rem;
+    font-weight: 600;
+    margin: 0 0 20px 0;
+    color: #222;
+}
+
+.logs-container {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.log-entry {
+    padding: 16px 20px;
+    border-radius: 8px;
+    border-left: 4px solid;
+    background-color: #f8f9fa;
+}
+
+.log-entry.warning {
+    border-left-color: #ff9800;
+    background-color: #fff8e1;
+}
+
+.log-entry.error {
+    border-left-color: #dc3545;
+    background-color: #ffe6e6;
+}
+
+.log-entry.info {
+    border-left-color: #00bcd4;
+    background-color: #e0f7fa;
+}
+
+.log-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 8px;
+}
+
+.log-badge-wrapper {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.log-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+}
+
+.log-entry.warning .log-dot {
+    background-color: #ff9800;
+}
+
+.log-entry.error .log-dot {
+    background-color: #dc3545;
+}
+
+.log-entry.info .log-dot {
+    background-color: #00bcd4;
+}
+
+.log-badge {
+    font-size: 0.75rem;
+    font-weight: 700;
+    padding: 4px 10px;
+    border-radius: 4px;
+    letter-spacing: 0.5px;
+}
+
+.log-entry.warning .log-badge {
+    background-color: #ff9800;
+    color: #fff;
+}
+
+.log-entry.error .log-badge {
+    background-color: #dc3545;
+    color: #fff;
+}
+
+.log-entry.info .log-badge {
+    background-color: #00bcd4;
+    color: #fff;
+}
+
+.log-time {
+    font-size: 0.85rem;
+    color: #666;
+    font-family: 'Courier New', monospace;
+}
+
+.log-message {
+    font-size: 0.9rem;
+    color: #333;
+    line-height: 1.5;
+}
+
+/* Responsive */
+@media (max-width: 768px) {
+    .camera-capture-container {
+        flex-direction: column;
+    }
+
+    .camera-panel,
+    .detection-panel {
+        min-width: 100%;
+    }
+}

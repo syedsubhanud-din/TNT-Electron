@@ -1,0 +1,316 @@
+/* Layout Variables */
+$primary-color: #0d1b42;
+/* Dark Blue Header */
+$sidebar-bg: #ffffff;
+/* White Sidebar Body */
+$sidebar-text: #555555;
+$active-bg: #0d1b42;
+$active-text: #ffffff;
+$bg-color: #f4f7fe;
+$header-height: 60px;
+$sidebar-width-open: 260px;
+$sidebar-width-collapsed: 70px;
+$font-family: 'Inter', sans-serif;
+
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+
+.app-container {
+    display: flex;
+    height: 100vh;
+    width: 100vw;
+    font-family: $font-family;
+    overflow: hidden;
+    background-color: $bg-color;
+
+    /* Transition for main content if we want it to slide */
+    transition: all 0.3s ease;
+}
+
+/* Sidebar Styles */
+.sidebar {
+    background-color: $sidebar-bg;
+    color: $sidebar-text;
+    display: flex;
+    flex-direction: column;
+    transition: width 0.3s ease;
+    flex-shrink: 0;
+    box-shadow: 2px 0 10px rgba(0, 0, 0, 0.05);
+    z-index: 20;
+
+    &.open {
+        width: $sidebar-width-open;
+
+        .menu-text {
+            opacity: 1;
+            transition: opacity 0.2s 0.1s;
+            /* Delay fade in */
+            white-space: nowrap;
+        }
+    }
+
+    &.collapsed {
+        width: $sidebar-width-collapsed;
+
+        .menu-text {
+            opacity: 0;
+            width: 0;
+            display: none;
+        }
+
+        .menu-item {
+            justify-content: center;
+            padding: 12px 0;
+            margin: 5px 10px; // specific margin for collapsed button look
+
+            svg {
+                margin-right: 0;
+            }
+        }
+
+        .brand {
+            justify-content: center;
+            padding: 0;
+        }
+    }
+
+    .brand {
+        height: $header-height;
+        background-color: $primary-color;
+        color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 20px;
+        font-size: 1.2rem;
+        font-weight: 700;
+        letter-spacing: 1px;
+
+        .toggle-btn {
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border-radius: 4px;
+            transition: background-color 0.2s;
+
+            &:hover {
+                background-color: rgba(255, 255, 255, 0.1);
+            }
+
+            svg {
+                width: 16px;
+                height: 16px;
+                stroke: #fff;
+            }
+        }
+    }
+
+    /* Separate toggle row for collapsed state */
+    .collapsed-toggle-container {
+        display: flex;
+        justify-content: center;
+        padding: 10px 0;
+        border-bottom: 1px solid #f0f0f0;
+
+        .collapsed-toggle-btn {
+            width: 32px;
+            height: 32px;
+            border: 1px solid #eee;
+            background: #fcfcfc;
+            border-radius: 6px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            transition: all 0.2s;
+
+            &:hover {
+                background: #f0f0f0;
+            }
+
+            svg {
+                width: 16px;
+                height: 16px;
+                stroke: #666;
+            }
+        }
+    }
+
+    .menu {
+        flex: 1;
+        padding: 15px 12px;
+        overflow-y: auto;
+        overflow-x: hidden;
+
+        .menu-item {
+            display: flex;
+            align-items: center;
+            padding: 12px 16px;
+            margin-bottom: 4px;
+            cursor: pointer;
+            font-size: 0.9rem;
+            font-weight: 500;
+            transition: all 0.2s;
+            color: $sidebar-text;
+            text-decoration: none;
+            border-radius: 8px;
+
+            &:hover {
+                background-color: #f5f7fa;
+                color: $primary-color;
+            }
+
+            &.active {
+                background-color: $active-bg;
+                color: $active-text;
+                box-shadow: 0 4px 8px rgba(13, 27, 66, 0.15);
+            }
+
+            svg {
+                margin-right: 12px;
+                width: 20px;
+                height: 20px;
+                flex-shrink: 0;
+                stroke-width: 2px;
+            }
+        }
+    }
+}
+
+/* Main Content Area Styles */
+.main-content {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+    position: relative;
+    width: 100%;
+    /* Ensure it takes full available width */
+
+    /* Header Styles */
+    .header {
+        height: $header-height;
+        background-color: #fff;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        padding: 0 30px;
+        box-shadow: 0 1px 4px rgba(0, 0, 0, 0.03);
+        z-index: 10;
+        flex-shrink: 0;
+
+        .header-title {
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: #333;
+        }
+
+        .header-actions {
+            display: flex;
+            align-items: center;
+            gap: 20px;
+            font-size: 0.85rem;
+            color: #666;
+
+            .status {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+
+                &.connected {
+                    color: #28a745;
+                    font-weight: 500;
+                    background: rgba(40, 167, 69, 0.1);
+                    padding: 4px 10px;
+                    border-radius: 20px;
+                }
+
+                svg {
+                    width: 14px;
+                    height: 14px;
+                }
+            }
+
+            .logout-btn {
+                display: flex;
+                align-items: center;
+                gap: 6px;
+                padding: 6px 14px;
+                border: 1px solid #e0e0e0;
+                border-radius: 6px;
+                background-color: #fff;
+                color: #d9534f;
+                cursor: pointer;
+                font-weight: 500;
+                font-size: 0.85rem;
+                transition: all 0.2s;
+
+                &:hover {
+                    background-color: #fff5f5;
+                    border-color: #d9534f;
+                }
+
+                svg {
+                    width: 14px;
+                    height: 14px;
+                }
+            }
+        }
+    }
+
+    /* Page Content Container */
+    .page-container {
+        flex: 1;
+        overflow-y: auto;
+        padding: 24px;
+        background-color: $bg-color;
+
+        h1 {
+            font-size: 1.8rem;
+            margin-bottom: 5px;
+            color: #1a1a1a;
+        }
+    }
+}
+
+/* Responsive Adjustments */
+@media (max-width: 992px) {
+
+    /* Tablet: Force sidebar to collapse state or smaller fixed width?
+       We can rely on user logic, but let's make it responsive friendly 
+    */
+    .sidebar.open {
+        position: absolute;
+        height: 100%;
+        box-shadow: 2px 0 15px rgba(0, 0, 0, 0.1);
+    }
+}
+
+@media (max-width: 768px) {
+    .header {
+        padding: 0 15px !important;
+
+        .header-title {
+            font-size: 0.9rem;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+            max-width: 150px;
+        }
+
+        .header-actions {
+            gap: 10px;
+
+            .time {
+                display: none;
+                /* Hide time on small screens */
+            }
+        }
+    }
+
+    .page-container {
+        padding: 15px;
+    }
+}

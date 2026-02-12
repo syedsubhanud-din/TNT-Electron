@@ -1,0 +1,969 @@
+{
+    "message": {
+      "status": "ok",
+      "id": 115,
+      "name": "PharmaLabel_544",
+      "attribute": {
+        "created_time": 1770927277,
+        "modified_time": 1770927277,
+        "permission": "rwx",
+        "print_log": false,
+        "printdata_pref": {
+          "print_prefs": [
+            {
+              "ff_margin": 60,
+              "fr_margin": 0,
+              "bf_margin": 0,
+              "br_margin": 0,
+              "continuous_print": false
+            },
+            {
+              "ff_margin": 60,
+              "fr_margin": 0,
+              "bf_margin": 0,
+              "br_margin": 0,
+              "continuous_print": false
+            },
+            {
+              "ff_margin": 60,
+              "fr_margin": 0,
+              "bf_margin": 0,
+              "br_margin": 0,
+              "continuous_print": false
+            },
+            {
+              "ff_margin": 60,
+              "fr_margin": 0,
+              "bf_margin": 0,
+              "br_margin": 0,
+              "continuous_print": false
+            }
+          ]
+        },
+        "fixed_boundary": false,
+        "fixed_height": 300,
+        "fixed_width": 300,
+        "page_num": 1
+      },
+      "style": {
+        "rotate": 0,
+        "mirror": 0,
+        "stretch": 0,
+        "reverse": 0
+      },
+      "object_list": [
+        {
+          "type": "text",
+          "name": "GTIN",
+          "id": 451,
+          "attribute": {
+            "locked": false,
+            "lock_aspect_ratio": true,
+            "relative_resize": true,
+            "enabled": true,
+            "page": 0
+          },
+          "style": {
+            "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+            "rotate": 0,
+            "mirror": 0,
+            "stretch": 0,
+            "reverse": 0,
+            "visiblity": "visible",
+            "x": 310,
+            "y": 2,
+            "w": 687,
+            "h": 40,
+            "halign": 0,
+            "valign": 0,
+            "row_space": 1,
+            "letter_space": 10,
+            "fh_ratio": 0,
+            "fw_ratio": 0,
+            "pivot_x": 0,
+            "pivot_y": 0,
+            "scale_x": 1,
+            "scale_y": 1,
+            "paint_style": "fill",
+            "line_cap": "butt",
+            "line_join": "miter",
+            "line_width": 0,
+            "line_miter": 1,
+            "letter_spacing": 0,
+            "text_skewx": -0.25
+          },
+          "source_list": [
+            {
+              "type": "text",
+              "id": 460
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "MFG",
+          "id": 452,
+          "attribute": {
+            "locked": false,
+            "lock_aspect_ratio": true,
+            "relative_resize": true,
+            "enabled": true,
+            "page": 0
+          },
+          "style": {
+            "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+            "rotate": 0,
+            "mirror": 0,
+            "stretch": 0,
+            "reverse": 0,
+            "visiblity": "visible",
+            "x": 315,
+            "y": 53,
+            "w": 414,
+            "h": 40,
+            "halign": 0,
+            "valign": 0,
+            "row_space": 1,
+            "letter_space": 10,
+            "fh_ratio": 0,
+            "fw_ratio": 0,
+            "pivot_x": 0,
+            "pivot_y": 0,
+            "scale_x": 1,
+            "scale_y": 1,
+            "paint_style": "fill",
+            "line_cap": "butt",
+            "line_join": "miter",
+            "line_width": 0,
+            "line_miter": 1,
+            "letter_spacing": 0,
+            "text_skewx": -0.25
+          },
+          "source_list": [
+            {
+              "type": "text",
+              "id": 461
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "EXP",
+          "id": 453,
+          "attribute": {
+            "locked": false,
+            "lock_aspect_ratio": true,
+            "relative_resize": true,
+            "enabled": true,
+            "page": 0
+          },
+          "style": {
+            "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+            "rotate": 0,
+            "mirror": 0,
+            "stretch": 0,
+            "reverse": 0,
+            "visiblity": "visible",
+            "x": 317,
+            "y": 108,
+            "w": 414,
+            "h": 40,
+            "halign": 0,
+            "valign": 0,
+            "row_space": 1,
+            "letter_space": 10,
+            "fh_ratio": 0,
+            "fw_ratio": 0,
+            "pivot_x": 0,
+            "pivot_y": 0,
+            "scale_x": 1,
+            "scale_y": 1,
+            "paint_style": "fill",
+            "line_cap": "butt",
+            "line_join": "miter",
+            "line_width": 0,
+            "line_miter": 1,
+            "letter_spacing": 0,
+            "text_skewx": -0.25
+          },
+          "source_list": [
+            {
+              "type": "text",
+              "id": 462
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "BATCH",
+          "id": 454,
+          "attribute": {
+            "locked": false,
+            "lock_aspect_ratio": true,
+            "relative_resize": true,
+            "enabled": true,
+            "page": 0
+          },
+          "style": {
+            "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+            "rotate": 0,
+            "mirror": 0,
+            "stretch": 0,
+            "reverse": 0,
+            "visiblity": "visible",
+            "x": 315,
+            "y": 161,
+            "w": 445,
+            "h": 40,
+            "halign": 0,
+            "valign": 0,
+            "row_space": 1,
+            "letter_space": 10,
+            "fh_ratio": 0,
+            "fw_ratio": 0,
+            "pivot_x": 0,
+            "pivot_y": 0,
+            "scale_x": 1,
+            "scale_y": 1,
+            "paint_style": "fill",
+            "line_cap": "butt",
+            "line_join": "miter",
+            "line_width": 0,
+            "line_miter": 1,
+            "letter_spacing": 0,
+            "text_skewx": -0.25
+          },
+          "source_list": [
+            {
+              "type": "text",
+              "id": 463
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "SN",
+          "id": 455,
+          "attribute": {
+            "locked": false,
+            "lock_aspect_ratio": true,
+            "relative_resize": true,
+            "enabled": true,
+            "page": 0
+          },
+          "style": {
+            "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+            "rotate": 0,
+            "mirror": 0,
+            "stretch": 0,
+            "reverse": 0,
+            "visiblity": "visible",
+            "x": 314,
+            "y": 202,
+            "w": 380,
+            "h": 40,
+            "halign": 0,
+            "valign": 0,
+            "row_space": 1,
+            "letter_space": 10,
+            "fh_ratio": 0,
+            "fw_ratio": 0,
+            "pivot_x": 0,
+            "pivot_y": 0,
+            "scale_x": 1,
+            "scale_y": 1,
+            "paint_style": "fill",
+            "line_cap": "butt",
+            "line_join": "miter",
+            "line_width": 0,
+            "line_miter": 1,
+            "letter_spacing": 0,
+            "text_skewx": -0.25
+          },
+          "source_list": [
+            {
+              "type": "text",
+              "id": 464
+            }
+          ]
+        },
+        {
+          "type": "text",
+          "name": "SN-DATE",
+          "id": 456,
+          "attribute": {
+            "locked": false,
+            "lock_aspect_ratio": true,
+            "relative_resize": true,
+            "enabled": true,
+            "page": 0
+          },
+          "style": {
+            "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+            "rotate": 0,
+            "mirror": 0,
+            "stretch": 0,
+            "reverse": 0,
+            "visiblity": "visible",
+            "x": 705,
+            "y": 205,
+            "w": 306,
+            "h": 40,
+            "halign": 0,
+            "valign": 0,
+            "row_space": 1,
+            "letter_space": 10,
+            "fh_ratio": 0,
+            "fw_ratio": 0,
+            "pivot_x": 0,
+            "pivot_y": 0,
+            "scale_x": 1,
+            "scale_y": 1,
+            "paint_style": "fill",
+            "line_cap": "butt",
+            "line_join": "miter",
+            "line_width": 0,
+            "line_miter": 1,
+            "letter_spacing": 0,
+            "text_skewx": -0.25
+          },
+          "source_list": [
+            {
+              "type": "date",
+              "id": 15
+            }
+          ]
+        },
+        {
+          "type": "barcode",
+          "name": "Barcode",
+          "id": 457,
+          "attribute": {
+            "locked": false,
+            "lock_aspect_ratio": true,
+            "relative_resize": true,
+            "enabled": true,
+            "page": 0
+          },
+          "style": {
+            "rotate": 0,
+            "mirror": 0,
+            "stretch": 0,
+            "reverse": 0,
+            "visiblity": "visible",
+            "x": 10,
+            "y": 0,
+            "w": 286,
+            "h": 286,
+            "halign": 0,
+            "valign": 0,
+            "font_style": "ttf-default-r*nnn*-80-80-UTF-8",
+            "format": "data_matrix",
+            "human_readable": "bottom",
+            "bearer_bar_type": "none",
+            "extras": {
+              "dm_size": 0,
+              "gs1_gs_separator": false
+            },
+            "data_type": "unicode",
+            "text_margin": 3,
+            "x_dimension": 13,
+            "bar_height": 180,
+            "quiet_zone": 0,
+            "bearer_bar_thickness": 0,
+            "gs1_nocheck": false,
+            "escape_seq": false,
+            "pivot_x": 0,
+            "pivot_y": 0,
+            "scale_x": 1,
+            "scale_y": 1,
+            "paint_style": "fill",
+            "line_cap": "butt",
+            "line_join": "miter",
+            "line_width": 0,
+            "line_miter": 0,
+            "dot": false,
+            "gs1_ai_delimiter": "auto",
+            "fast_encoding": false
+          },
+          "source_list": [
+            {
+              "type": "text",
+              "id": 465
+            }
+          ]
+        }
+      ],
+      "source_list": [
+        {
+          "type": "text",
+          "id": 460,
+          "name": "GTIN",
+          "attribute": {
+            "content": "GTIN: 08961101532710",
+            "exported": false,
+            "limit_switch": false,
+            "page": 0
+          }
+        },
+        {
+          "type": "text",
+          "id": 461,
+          "name": "MFG",
+          "attribute": {
+            "content": "MFG: 01 2026",
+            "exported": false,
+            "limit_switch": false,
+            "page": 0
+          }
+        },
+        {
+          "type": "text",
+          "id": 462,
+          "name": "EXP",
+          "attribute": {
+            "content": "EXP: 01 2029",
+            "exported": false,
+            "limit_switch": false,
+            "page": 0
+          }
+        },
+        {
+          "type": "text",
+          "id": 463,
+          "name": "BATCH",
+          "attribute": {
+            "content": "BATCH: 153A26",
+            "exported": false,
+            "limit_switch": false,
+            "page": 0
+          }
+        },
+        {
+          "type": "text",
+          "id": 464,
+          "name": "SN",
+          "attribute": {
+            "content": "SN: 8888888",
+            "exported": false,
+            "limit_switch": false,
+            "page": 0
+          }
+        },
+        {
+          "type": "date",
+          "id": 15,
+          "name": "SN-DATE",
+          "attribute": {
+            "format": {
+              "hash": 26111304,
+              "name": "JULION DAY",
+              "radix": {
+                "hash": 26111600,
+                "name": "dec",
+                "radix_digits": "0123456789"
+              },
+              "locale": "default",
+              "items": [
+                {
+                  "type": "date",
+                  "content": "DST"
+                },
+                {
+                  "type": "date",
+                  "content": "HH"
+                },
+                {
+                  "type": "date",
+                  "content": "mm"
+                },
+                {
+                  "type": "date",
+                  "content": "ss"
+                }
+              ]
+            },
+            "expiry": 0,
+            "zero": 0,
+            "expiry_unit": "year",
+            "leading_zero": "leading_zeros",
+            "calendar": "gregorian",
+            "daylight_saving_time": "off",
+            "page": 0,
+            "best_date": false,
+            "best_date_month": 0,
+            "best_date_type": "last_day",
+            "lose_days": 0
+          }
+        },
+        {
+          "type": "text",
+          "id": 465,
+          "name": "PharmaLabel_544_QRData",
+          "attribute": {
+            "content": "010896110153271021027500826042165648721729010010153A26",
+            "exported": false,
+            "limit_switch": false,
+            "page": 0
+          }
+        }
+      ]
+    },
+    "objects": [
+      {
+        "type": "text",
+        "name": "GTIN",
+        "id": 451,
+        "attribute": {
+          "locked": false,
+          "lock_aspect_ratio": true,
+          "relative_resize": true,
+          "enabled": true,
+          "page": 0
+        },
+        "style": {
+          "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+          "rotate": 0,
+          "mirror": 0,
+          "stretch": 0,
+          "reverse": 0,
+          "visiblity": "visible",
+          "x": 310,
+          "y": 2,
+          "w": 687,
+          "h": 40,
+          "halign": 0,
+          "valign": 0,
+          "row_space": 1,
+          "letter_space": 10,
+          "fh_ratio": 0,
+          "fw_ratio": 0,
+          "pivot_x": 0,
+          "pivot_y": 0,
+          "scale_x": 1,
+          "scale_y": 1,
+          "paint_style": "fill",
+          "line_cap": "butt",
+          "line_join": "miter",
+          "line_width": 0,
+          "line_miter": 1,
+          "letter_spacing": 0,
+          "text_skewx": -0.25
+        },
+        "source_list": [
+          {
+            "type": "text",
+            "id": 460
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "name": "MFG",
+        "id": 452,
+        "attribute": {
+          "locked": false,
+          "lock_aspect_ratio": true,
+          "relative_resize": true,
+          "enabled": true,
+          "page": 0
+        },
+        "style": {
+          "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+          "rotate": 0,
+          "mirror": 0,
+          "stretch": 0,
+          "reverse": 0,
+          "visiblity": "visible",
+          "x": 315,
+          "y": 53,
+          "w": 414,
+          "h": 40,
+          "halign": 0,
+          "valign": 0,
+          "row_space": 1,
+          "letter_space": 10,
+          "fh_ratio": 0,
+          "fw_ratio": 0,
+          "pivot_x": 0,
+          "pivot_y": 0,
+          "scale_x": 1,
+          "scale_y": 1,
+          "paint_style": "fill",
+          "line_cap": "butt",
+          "line_join": "miter",
+          "line_width": 0,
+          "line_miter": 1,
+          "letter_spacing": 0,
+          "text_skewx": -0.25
+        },
+        "source_list": [
+          {
+            "type": "text",
+            "id": 461
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "name": "EXP",
+        "id": 453,
+        "attribute": {
+          "locked": false,
+          "lock_aspect_ratio": true,
+          "relative_resize": true,
+          "enabled": true,
+          "page": 0
+        },
+        "style": {
+          "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+          "rotate": 0,
+          "mirror": 0,
+          "stretch": 0,
+          "reverse": 0,
+          "visiblity": "visible",
+          "x": 317,
+          "y": 108,
+          "w": 414,
+          "h": 40,
+          "halign": 0,
+          "valign": 0,
+          "row_space": 1,
+          "letter_space": 10,
+          "fh_ratio": 0,
+          "fw_ratio": 0,
+          "pivot_x": 0,
+          "pivot_y": 0,
+          "scale_x": 1,
+          "scale_y": 1,
+          "paint_style": "fill",
+          "line_cap": "butt",
+          "line_join": "miter",
+          "line_width": 0,
+          "line_miter": 1,
+          "letter_spacing": 0,
+          "text_skewx": -0.25
+        },
+        "source_list": [
+          {
+            "type": "text",
+            "id": 462
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "name": "BATCH",
+        "id": 454,
+        "attribute": {
+          "locked": false,
+          "lock_aspect_ratio": true,
+          "relative_resize": true,
+          "enabled": true,
+          "page": 0
+        },
+        "style": {
+          "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+          "rotate": 0,
+          "mirror": 0,
+          "stretch": 0,
+          "reverse": 0,
+          "visiblity": "visible",
+          "x": 315,
+          "y": 161,
+          "w": 445,
+          "h": 40,
+          "halign": 0,
+          "valign": 0,
+          "row_space": 1,
+          "letter_space": 10,
+          "fh_ratio": 0,
+          "fw_ratio": 0,
+          "pivot_x": 0,
+          "pivot_y": 0,
+          "scale_x": 1,
+          "scale_y": 1,
+          "paint_style": "fill",
+          "line_cap": "butt",
+          "line_join": "miter",
+          "line_width": 0,
+          "line_miter": 1,
+          "letter_spacing": 0,
+          "text_skewx": -0.25
+        },
+        "source_list": [
+          {
+            "type": "text",
+            "id": 463
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "name": "SN",
+        "id": 455,
+        "attribute": {
+          "locked": false,
+          "lock_aspect_ratio": true,
+          "relative_resize": true,
+          "enabled": true,
+          "page": 0
+        },
+        "style": {
+          "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+          "rotate": 0,
+          "mirror": 0,
+          "stretch": 0,
+          "reverse": 0,
+          "visiblity": "visible",
+          "x": 314,
+          "y": 202,
+          "w": 380,
+          "h": 40,
+          "halign": 0,
+          "valign": 0,
+          "row_space": 1,
+          "letter_space": 10,
+          "fh_ratio": 0,
+          "fw_ratio": 0,
+          "pivot_x": 0,
+          "pivot_y": 0,
+          "scale_x": 1,
+          "scale_y": 1,
+          "paint_style": "fill",
+          "line_cap": "butt",
+          "line_join": "miter",
+          "line_width": 0,
+          "line_miter": 1,
+          "letter_spacing": 0,
+          "text_skewx": -0.25
+        },
+        "source_list": [
+          {
+            "type": "text",
+            "id": 464
+          }
+        ]
+      },
+      {
+        "type": "text",
+        "name": "SN-DATE",
+        "id": 456,
+        "attribute": {
+          "locked": false,
+          "lock_aspect_ratio": true,
+          "relative_resize": true,
+          "enabled": true,
+          "page": 0
+        },
+        "style": {
+          "font_style": "ttf-OCR_B-r*nnn*-40-40-UTF-8",
+          "rotate": 0,
+          "mirror": 0,
+          "stretch": 0,
+          "reverse": 0,
+          "visiblity": "visible",
+          "x": 705,
+          "y": 205,
+          "w": 306,
+          "h": 40,
+          "halign": 0,
+          "valign": 0,
+          "row_space": 1,
+          "letter_space": 10,
+          "fh_ratio": 0,
+          "fw_ratio": 0,
+          "pivot_x": 0,
+          "pivot_y": 0,
+          "scale_x": 1,
+          "scale_y": 1,
+          "paint_style": "fill",
+          "line_cap": "butt",
+          "line_join": "miter",
+          "line_width": 0,
+          "line_miter": 1,
+          "letter_spacing": 0,
+          "text_skewx": -0.25
+        },
+        "source_list": [
+          {
+            "type": "date",
+            "id": 15
+          }
+        ]
+      },
+      {
+        "type": "barcode",
+        "name": "Barcode",
+        "id": 457,
+        "attribute": {
+          "locked": false,
+          "lock_aspect_ratio": true,
+          "relative_resize": true,
+          "enabled": true,
+          "page": 0
+        },
+        "style": {
+          "rotate": 0,
+          "mirror": 0,
+          "stretch": 0,
+          "reverse": 0,
+          "visiblity": "visible",
+          "x": 10,
+          "y": 0,
+          "w": 286,
+          "h": 286,
+          "halign": 0,
+          "valign": 0,
+          "font_style": "ttf-default-r*nnn*-80-80-UTF-8",
+          "format": "data_matrix",
+          "human_readable": "bottom",
+          "bearer_bar_type": "none",
+          "extras": {
+            "dm_size": 0,
+            "gs1_gs_separator": false
+          },
+          "data_type": "unicode",
+          "text_margin": 3,
+          "x_dimension": 13,
+          "bar_height": 180,
+          "quiet_zone": 0,
+          "bearer_bar_thickness": 0,
+          "gs1_nocheck": false,
+          "escape_seq": false,
+          "pivot_x": 0,
+          "pivot_y": 0,
+          "scale_x": 1,
+          "scale_y": 1,
+          "paint_style": "fill",
+          "line_cap": "butt",
+          "line_join": "miter",
+          "line_width": 0,
+          "line_miter": 0,
+          "dot": false,
+          "gs1_ai_delimiter": "auto",
+          "fast_encoding": false
+        },
+        "source_list": [
+          {
+            "type": "text",
+            "id": 465
+          }
+        ]
+      }
+    ],
+    "sources": [
+      {
+        "type": "text",
+        "id": 460,
+        "name": "GTIN",
+        "attribute": {
+          "content": "GTIN: 08961101532710",
+          "exported": false,
+          "limit_switch": false,
+          "page": 0
+        }
+      },
+      {
+        "type": "text",
+        "id": 461,
+        "name": "MFG",
+        "attribute": {
+          "content": "MFG: 01 2026",
+          "exported": false,
+          "limit_switch": false,
+          "page": 0
+        }
+      },
+      {
+        "type": "text",
+        "id": 462,
+        "name": "EXP",
+        "attribute": {
+          "content": "EXP: 01 2029",
+          "exported": false,
+          "limit_switch": false,
+          "page": 0
+        }
+      },
+      {
+        "type": "text",
+        "id": 463,
+        "name": "BATCH",
+        "attribute": {
+          "content": "BATCH: 153A26",
+          "exported": false,
+          "limit_switch": false,
+          "page": 0
+        }
+      },
+      {
+        "type": "text",
+        "id": 464,
+        "name": "SN",
+        "attribute": {
+          "content": "SN: 8888888",
+          "exported": false,
+          "limit_switch": false,
+          "page": 0
+        }
+      },
+      {
+        "type": "date",
+        "id": 15,
+        "name": "SN-DATE",
+        "attribute": {
+          "format": {
+            "hash": 26111304,
+            "name": "JULION DAY",
+            "radix": {
+              "hash": 26111600,
+              "name": "dec",
+              "radix_digits": "0123456789"
+            },
+            "locale": "default",
+            "items": [
+              {
+                "type": "date",
+                "content": "DST"
+              },
+              {
+                "type": "date",
+                "content": "HH"
+              },
+              {
+                "type": "date",
+                "content": "mm"
+              },
+              {
+                "type": "date",
+                "content": "ss"
+              }
+            ]
+          },
+          "expiry": 0,
+          "zero": 0,
+          "expiry_unit": "year",
+          "leading_zero": "leading_zeros",
+          "calendar": "gregorian",
+          "daylight_saving_time": "off",
+          "page": 0,
+          "best_date": false,
+          "best_date_month": 0,
+          "best_date_type": "last_day",
+          "lose_days": 0
+        }
+      },
+      {
+        "type": "text",
+        "id": 465,
+        "name": "PharmaLabel_544_QRData",
+        "attribute": {
+          "content": "010896110153271021027500826042165648721729010010153A26",
+          "exported": false,
+          "limit_switch": false,
+          "page": 0
+        }
+      }
+    ]
+  }
