@@ -18,6 +18,20 @@ class SojetClient:
         self.port = port
         self.timeout = timeout
         self.socket = None
+        self._load_config()
+
+    def _load_config(self):
+        """Try to load config from printer_config.json if it exists"""
+        import os
+        config_path = os.path.join(os.path.dirname(__file__), "printer_config.json")
+        if os.path.exists(config_path):
+            try:
+                with open(config_path, "r") as f:
+                    config = json.load(f)
+                    self.host = config.get("printer_ip", self.host)
+                    self.port = config.get("printer_port", self.port)
+            except Exception as e:
+                print(f"Warning: Failed to load config from {config_path}: {e}")
 
     def connect(self) -> bool:
         try:
@@ -25,8 +39,11 @@ class SojetClient:
             self.socket.settimeout(self.timeout)
             self.socket.connect((self.host, self.port))
             return True
+        except socket.timeout:
+            print(f"Error: Connection to printer at {self.host}:{self.port} timed out.")
+            return False
         except socket.error as e:
-            print(f"Connection error: {e}")
+            print(f"Error: Could not connect to printer at {self.host}:{self.port}. {e}")
             return False
 
     def disconnect(self):

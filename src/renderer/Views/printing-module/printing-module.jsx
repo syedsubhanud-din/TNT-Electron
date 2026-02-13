@@ -13,8 +13,38 @@ export default function PrintingModule() {
         serialNumber: '',
     });
 
+    const [printerSettings, setPrinterSettings] = useState({
+        printer_ip: '172.16.0.55',
+        printer_port: 9944
+    });
+
+    const [showSettings, setShowSettings] = useState(false);
     const [isGenerated, setIsGenerated] = useState(false);
     const [currentMessageName, setCurrentMessageName] = useState('');
+
+    React.useEffect(() => {
+        const loadConfig = async () => {
+            if (window.electron && window.electron.getPrinterConfig) {
+                const config = await window.electron.getPrinterConfig();
+                setPrinterSettings(config);
+            }
+        };
+        loadConfig();
+    }, []);
+
+    const handleSaveSettings = async () => {
+        try {
+            const result = await window.electron.savePrinterConfig(printerSettings);
+            if (result.success) {
+                toast.success("Printer settings saved!");
+                setShowSettings(false);
+            } else {
+                toast.error(`Failed to save: ${result.error}`);
+            }
+        } catch (error) {
+            toast.error(`Error saving settings: ${error.message}`);
+        }
+    };
 
     const handleChange = (e) => {
         const { name, value } = e.target;
@@ -44,6 +74,28 @@ export default function PrintingModule() {
         if (!formData.mfgDate || !formData.expDate || !formData.gtin || !formData.batch || !formData.serialNumber) {
              toast.error("Please fill in all required fields");
              return;
+        }
+
+        // Date Validation
+        const today = new Date();
+        today.setHours(0, 0, 0, 0);
+
+        const mfgDate = new Date(formData.mfgDate);
+        const expDate = new Date(formData.expDate);
+
+        if (mfgDate > today) {
+            toast.error("Manufacturing Date cannot be in the future");
+            return;
+        }
+
+        if (expDate < today) {
+            toast.error("Expiry Date cannot be in the past");
+            return;
+        }
+
+        if (expDate <= mfgDate) {
+            toast.error("Expiry Date must be after Manufacturing Date");
+            return;
         }
 
         try {
@@ -197,9 +249,42 @@ export default function PrintingModule() {
     return (
         <div className="printing-module-wrapper">
              <div className="page-header">
-                <h1>Printing Module</h1>
-                <p className="subtitle">Generate QR codes and print product labels</p>
+                <div className="title-group">
+                    <h1>Printing Module</h1>
+                    <p className="subtitle">Generate QR codes and print product labels</p>
+                </div>
+                <button className={`btn-settings ${showSettings ? 'active' : ''}`} onClick={() => setShowSettings(!showSettings)}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><circle cx="12" cy="12" r="3"></circle><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z"></path></svg>
+                    {showSettings ? 'Hide Settings' : 'Printer Settings'}
+                </button>
             </div>
+
+            {showSettings && (
+                <div className="printer-settings-panel">
+                    <h3>Printer Configuration</h3>
+                    <div className="settings-row">
+                        <div className="form-group">
+                            <label>Printer IP Address</label>
+                            <input 
+                                type="text" 
+                                value={printerSettings.printer_ip} 
+                                onChange={(e) => setPrinterSettings({...printerSettings, printer_ip: e.target.value})}
+                                placeholder="172.16.0.55"
+                            />
+                        </div>
+                        <div className="form-group">
+                            <label>Printer Port</label>
+                            <input 
+                                type="number" 
+                                value={printerSettings.printer_port} 
+                                onChange={(e) => setPrinterSettings({...printerSettings, printer_port: parseInt(e.target.value)})}
+                                placeholder="9944"
+                            />
+                        </div>
+                        <button className="btn-save" onClick={handleSaveSettings}>Save Config</button>
+                    </div>
+                </div>
+            )}
 
             <div className="printing-module-container">
                 {/* Left Panel: Label Information Form */}
@@ -213,6 +298,7 @@ export default function PrintingModule() {
                             name="mfgDate" 
                             value={formData.mfgDate} 
                             onChange={handleChange}
+                            max={new Date().toISOString().split('T')[0]}
                         />
                         <span className="help-text">Select the date of manufacture</span>
                     </div>
@@ -224,6 +310,7 @@ export default function PrintingModule() {
                             name="expDate" 
                             value={formData.expDate} 
                             onChange={handleChange}
+                            min={new Date().toISOString().split('T')[0]}
                         />
                         <span className="help-text">Must be after manufacturing date</span>
                     </div>

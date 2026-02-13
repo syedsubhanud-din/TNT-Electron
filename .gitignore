@@ -1,6 +1,10 @@
 # Logs
 logs
 *.log
+__pycache__/
+*.py[cod]
+*$py.class
+
 
 # Runtime data
 pids
@@ -17,9 +21,12 @@ node_modules
 
 # OSX
 .DS_Store
+.AppleDouble
+.LSOverride
 
-release/app/dist
-release/build
+
+release/
+
 .erb/dll
 
 .idea

@@ -32,26 +32,57 @@ ipcMain.on('ipc-example', async (event, arg) => {
   event.reply('ipc-example', msgTemplate('pong'));
 });
 
+const getPythonExecutable = async (pythonDir: string) => {
+  const venvPython = process.platform === 'win32'
+    ? path.join(pythonDir, 'venv', 'Scripts', 'python.exe')
+    : path.join(pythonDir, 'venv', 'bin', 'python');
+
+  const fs = require('fs');
+  
+  // If venv exists, we try it first. 
+  // But in packaged builds, a local venv might be broken due to absolute paths in pyvenv.cfg.
+  if (fs.existsSync(venvPython)) {
+    // Basic check: if we're packaged, the venv might be invalid if it was copied from a different user's machine
+    // However, some users might bundle a truly portable venv.
+    // We'll tentatively use it, but we need a way to fallback if it fails.
+    return venvPython;
+  }
+
+  // Fallback to system python
+  if (process.platform === 'win32') {
+    // Try 'python' first, then 'py' (launcher)
+    return 'python'; 
+  }
+  return 'python3';
+};
+
 ipcMain.handle('run-python', async (_event, scriptName, args) => {
+  const pythonDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'python')
+    : path.join(__dirname, '../../python');
+
+  const pythonExecutable = await getPythonExecutable(pythonDir);
+  const scriptPath = path.join(pythonDir, scriptName);
+
   return new Promise((resolve, reject) => {
-    const pythonDir = app.isPackaged
-      ? path.join(process.resourcesPath, 'python')
-      : path.join(__dirname, '../../python');
+    console.log(`Executing: ${pythonExecutable} ${scriptPath} ${args.join(' ')}`);
 
-    const scriptPath = path.join(pythonDir, scriptName);
-
-    const venvPython = process.platform === 'win32'
-      ? path.join(pythonDir, 'venv', 'Scripts', 'python.exe')
-      : path.join(pythonDir, 'venv', 'bin', 'python');
-
-    const fs = require('fs');
-    const finalExecutable = fs.existsSync(venvPython) ? venvPython : (process.platform === 'win32' ? 'py' : 'python3');
-
-    console.log(`Executing with: ${finalExecutable} ${scriptPath} ${args.join(' ')}`);
-
-    execFile(finalExecutable, [scriptPath, ...args], (error: Error | null, stdout: string, stderr: string) => {
+    execFile(pythonExecutable, [scriptPath, ...args], (error: Error | null, stdout: string, stderr: string) => {
       if (error) {
         console.error(`execFile error: ${error}`);
+        // If the primary executable failed, try one last fallback to 'py' on windows
+        if (process.platform === 'win32' && pythonExecutable !== 'py') {
+          console.log('Primary python failed, trying "py" launcher...');
+          execFile('py', [scriptPath, ...args], (error2: Error | null, stdout2: string, stderr2: string) => {
+            if (error2) {
+              const errorMsg = stderr2 || stdout2 || error2.message;
+              reject(new Error(errorMsg));
+            } else {
+              resolve(stdout2 || stderr2);
+            }
+          });
+          return;
+        }
         const errorMsg = stderr || stdout || error.message;
         reject(new Error(errorMsg));
         return;
@@ -66,47 +97,78 @@ ipcMain.handle('run-python', async (_event, scriptName, args) => {
 });
 
 ipcMain.handle('execute-python', async (_event, action, data) => {
+  const pythonDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'python')
+    : path.join(__dirname, '../../python');
+
+  const pythonExecutable = await getPythonExecutable(pythonDir);
+  const scriptPath = path.join(pythonDir, 'print_label.py');
+  const args = [scriptPath, action, data];
+
   return new Promise((resolve, reject) => {
-    const pythonDir = app.isPackaged
-      ? path.join(process.resourcesPath, 'python')
-      : path.join(__dirname, '../../python');
-
-    const venvPython = process.platform === 'win32'
-      ? path.join(pythonDir, 'venv', 'Scripts', 'python.exe')
-      : path.join(pythonDir, 'venv', 'bin', 'python');
-
-    const fs = require('fs');
-    const pythonExecutable = fs.existsSync(venvPython) ? venvPython : (process.platform === 'win32' ? 'py' : 'python3');
-
-    const scriptPath = path.join(pythonDir, 'print_label.py');
-    const args = [scriptPath, action, data];
-
     console.log(`Executing: ${pythonExecutable} ${args.join(' ')}`);
 
-    execFile(pythonExecutable, args, { maxBuffer: 1024 * 1024 }, (error: Error | null, stdout: string, stderr: string) => {
-      if (error) {
-        console.error(`execFile error: ${error}`);
-        console.error(`stderr: ${stderr}`);
-        resolve({ success: false, error: error.message });
-        return;
-      }
-      if (stderr) {
-        console.warn(`stderr: ${stderr}`);
-      }
-      console.log(`stdout: ${stdout}`);
-      
-      try {
-        // Try to parse the last line as JSON (the result)
-        const lines = stdout.trim().split('\n');
-        const lastLine = lines[lines.length - 1];
-        const result = JSON.parse(lastLine);
-        resolve(result);
-      } catch (parseError) {
-        console.error('Failed to parse Python output:', parseError);
-        resolve({ success: false, error: 'Failed to parse Python output', output: stdout });
-      }
-    });
+    const options = { maxBuffer: 1024 * 1024 };
+    
+    const run = (exe: string) => {
+      execFile(exe, args, options, (error: Error | null, stdout: string, stderr: string) => {
+        if (error) {
+          if (process.platform === 'win32' && exe !== 'py') {
+            console.log('Primary python failed, trying "py" launcher...');
+            run('py');
+            return;
+          }
+          console.error(`execFile error: ${error}`);
+          resolve({ success: false, error: error.message });
+          return;
+        }
+        
+        try {
+          const lines = stdout.trim().split('\n');
+          const lastLine = lines[lines.length - 1];
+          const result = JSON.parse(lastLine);
+          resolve(result);
+        } catch (parseError) {
+          console.error('Failed to parse Python output:', parseError);
+          resolve({ success: false, error: 'Failed to parse Python output', output: stdout });
+        }
+      });
+    };
+
+    run(pythonExecutable);
   });
+});
+
+ipcMain.handle('get-printer-config', async () => {
+  const pythonDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'python')
+    : path.join(__dirname, '../../python');
+  const configPath = path.join(pythonDir, 'create_message', 'printer_config.json');
+  const fs = require('fs');
+  try {
+    if (fs.existsSync(configPath)) {
+      const data = fs.readFileSync(configPath, 'utf8');
+      return JSON.parse(data);
+    }
+  } catch (error) {
+    console.error('Error reading printer config:', error);
+  }
+  return { printer_ip: '172.16.0.55', printer_port: 9944 };
+});
+
+ipcMain.handle('save-printer-config', async (_event, config) => {
+  const pythonDir = app.isPackaged
+    ? path.join(process.resourcesPath, 'python')
+    : path.join(__dirname, '../../python');
+  const configPath = path.join(pythonDir, 'create_message', 'printer_config.json');
+  const fs = require('fs');
+  try {
+    fs.writeFileSync(configPath, JSON.stringify(config, null, 2));
+    return { success: true };
+  } catch (error: any) {
+    console.error('Error saving printer config:', error);
+    return { success: false, error: error.message };
+  }
 });
 
 if (process.env.NODE_ENV === 'production') {

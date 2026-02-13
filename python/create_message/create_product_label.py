@@ -146,7 +146,23 @@ SN_DATE_SOURCE_ATTR = {
 }
 
 
+def load_printer_config():
+    """Try to load printer config from printer_config.json"""
+    import os
+    global PRINTER_IP, PRINTER_PORT
+    config_path = os.path.join(os.path.dirname(__file__), "printer_config.json")
+    if os.path.exists(config_path):
+        try:
+            with open(config_path, "r") as f:
+                config = json.load(f)
+                PRINTER_IP = config.get("printer_ip", PRINTER_IP)
+                PRINTER_PORT = config.get("printer_port", PRINTER_PORT)
+        except Exception as e:
+            print(f"Warning: Failed to load config from {config_path}: {e}")
+
+
 def main():
+    load_printer_config()
     ap = argparse.ArgumentParser(
         description="Create product label: QR (left) + GTIN/MFG/EXP/BATCH/SN/TMDA (right)"
     )
@@ -171,6 +187,17 @@ def main():
         action="store_false",
         dest="sn_date",
         help="Omit SN-DATE field.",
+    )
+    ap.add_argument(
+        "--printer-ip",
+        default=PRINTER_IP,
+        help=f"Printer IP address (default: {PRINTER_IP})",
+    )
+    ap.add_argument(
+        "--printer-port",
+        type=int,
+        default=PRINTER_PORT,
+        help=f"Printer port (default: {PRINTER_PORT})",
     )
     args = ap.parse_args()
 
@@ -222,7 +249,13 @@ def main():
         qr_content = " ".join(field_contents.values())
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.connect((PRINTER_IP, PRINTER_PORT))
+    s.settimeout(5)  # 5 second timeout for connection and commands
+    try:
+        s.connect((args.printer_ip, args.printer_port))
+    except (socket.timeout, socket.error) as e:
+        print(f"Error: Could not connect to printer at {args.printer_ip}:{args.printer_port}", file=sys.stderr)
+        print(f"Details: {e}", file=sys.stderr)
+        sys.exit(1)
 
     try:
         # 1. Text sources (one per field - GTIN, MFG, EXP, BATCH, SN)

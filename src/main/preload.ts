@@ -28,6 +28,12 @@ const electronHandler = {
   executePython(action: string, data: string): Promise<any> {
     return ipcRenderer.invoke('execute-python', action, data);
   },
+  getPrinterConfig(): Promise<any> {
+    return ipcRenderer.invoke('get-printer-config');
+  },
+  savePrinterConfig(config: any): Promise<any> {
+    return ipcRenderer.invoke('save-printer-config', config);
+  },
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);
