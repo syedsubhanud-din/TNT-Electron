@@ -25,6 +25,15 @@ def build_qr_string(gtin: str, serial_number: str, expiry_mmyyyy: str, batch: st
     return f"01{gtin}21{serial_number}17{yymmdd}10{batch}"
 
 
+def build_qr_parts(gtin: str, expiry_mmyyyy: str, batch: str) -> tuple[str, str]:
+    """Build prefix and suffix for dynamic barcode where SN is a counter.
+    Returns (prefix, suffix) for GS1: prefix + {SN} + suffix + {HHmmss}
+    prefix = 01{GTIN}21, suffix = 17{YYMMDD}10{Batch}
+    """
+    yymmdd = expiry_mmyyyy_to_yymmdd(expiry_mmyyyy)
+    return f"01{gtin}21", f"17{yymmdd}10{batch}"
+
+
 def mmyyyy_to_display(mmyyyy: str) -> str:
     """Convert MMYYYY to display format 'MM YYYY'. Example: 012029 -> 01 2029"""
     if not mmyyyy or len(mmyyyy) < 6:

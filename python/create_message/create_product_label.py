@@ -6,19 +6,17 @@ User inputs: GTIN, MFG, EXP, BATCH, SN, TMDA REG. NO.
 
 Features:
 - Data Matrix format (GS1-compatible)
-- Barcode sources: "single" (one GS1 text) or "multi" (GS1 text + date)
+- Barcode sources: "dynamic" (default), "single", "multi"
+- dynamic: SN (user input) + SN-DATE (date) in Data Matrix - SN-DATE changes on every print
 - SN-DATE: printer variable filled at print time, positioned adjacent to SN
-- GS1 encoding unchanged (build_qr_string from generate_label_config)
 
 Example usage:
-  # Default: single barcode source, with SN-DATE
+  # Dynamic: SN-DATE in Data Matrix changes on every print, SN from user
   python create_product_label.py --gtin 08961101532710 --mfg 012026 --exp 012029 --batch 153A26 --sn 02750082604216564872
 
-  # Multi barcode sources (GS1 + date concatenated)
-  python create_product_label.py --barcode-source multi --gtin 08961101532710 --mfg 012026 --exp 012029 --batch 153A26 --sn 02750082604216564872
-
-  # Without SN-DATE field
-  python create_product_label.py --no-sn-date --gtin 08961101532710 --mfg 012026 --exp 012029 --batch 153A26 --sn 02750082604216564872
+  # Static (single) or multi:
+  python create_product_label.py --barcode-source single --gtin ... --sn 02750082604216564872
+  python create_product_label.py --no-sn-date --gtin ... --batch 153A26
 """
 
 import argparse
@@ -28,15 +26,16 @@ import json
 import time
 import sys
 
-from generate_label_config import build_qr_string, mmyyyy_to_display
+from generate_label_config import build_qr_string, build_qr_parts, mmyyyy_to_display
 
 PRINTER_IP = "172.16.0.55"
 PRINTER_PORT = 9944
 
 # --- Barcode source presets: user selects which config to use ---
-# "single": one text source with full GS1 string (default, backward compat)
-# "multi":  multiple sources - main GS1 text + optional date (for barcode content)
-BARCODE_SOURCE_PRESETS = ("single", "multi")
+# "single":  one text source with full GS1 string (static)
+# "multi":   GS1 text + date source (SN-DATE in barcode, SN static)
+# "dynamic": prefix + SN(user input) + suffix + date(SN-DATE) - SN-DATE changes on every print
+BARCODE_SOURCE_PRESETS = ("single", "multi", "dynamic")
 
 FIELDS = [
     ("gtin", "GTIN", "14"),
@@ -146,23 +145,7 @@ SN_DATE_SOURCE_ATTR = {
 }
 
 
-def load_printer_config():
-    """Try to load printer config from printer_config.json"""
-    import os
-    global PRINTER_IP, PRINTER_PORT
-    config_path = os.path.join(os.path.dirname(__file__), "printer_config.json")
-    if os.path.exists(config_path):
-        try:
-            with open(config_path, "r") as f:
-                config = json.load(f)
-                PRINTER_IP = config.get("printer_ip", PRINTER_IP)
-                PRINTER_PORT = config.get("printer_port", PRINTER_PORT)
-        except Exception as e:
-            print(f"Warning: Failed to load config from {config_path}: {e}")
-
-
 def main():
-    load_printer_config()
     ap = argparse.ArgumentParser(
         description="Create product label: QR (left) + GTIN/MFG/EXP/BATCH/SN/TMDA (right)"
     )
@@ -171,10 +154,10 @@ def main():
         ap.add_argument(f"--{key}", help=f"{label} value")
     ap.add_argument(
         "--barcode-source",
-        default="single",
+        default="dynamic",
         choices=BARCODE_SOURCE_PRESETS,
-        help="Barcode source config: 'single' (one GS1 text source, default), "
-             "'multi' (GS1 text + date source for printer-injected timestamp)",
+        help="Barcode source: 'dynamic' (SN user input + SN-DATE in Data Matrix, default), "
+             "'single' (static GS1), 'multi' (GS1 + date)",
     )
     ap.add_argument(
         "--sn-date",
@@ -187,17 +170,6 @@ def main():
         action="store_false",
         dest="sn_date",
         help="Omit SN-DATE field.",
-    )
-    ap.add_argument(
-        "--printer-ip",
-        default=PRINTER_IP,
-        help=f"Printer IP address (default: {PRINTER_IP})",
-    )
-    ap.add_argument(
-        "--printer-port",
-        type=int,
-        default=PRINTER_PORT,
-        help=f"Printer port (default: {PRINTER_PORT})",
     )
     args = ap.parse_args()
 
@@ -229,10 +201,11 @@ def main():
                     print(f"Error: --{key} required when no message name given", file=sys.stderr)
                     sys.exit(1)
 
-    # GS1 encoding unchanged - build_qr_string from generate_label_config
+    # GS1 encoding
     qr_content = build_qr_string(
-        values["gtin"], values["sn"], values["exp"], values["batch"]
+        values["gtin"], values.get("sn") or "0", values["exp"], values["batch"]
     )
+    qr_prefix, qr_suffix = build_qr_parts(values["gtin"], values["exp"], values["batch"])
     field_contents = build_field_contents(values)
 
     if not qr_content and not any(values.values()):
@@ -249,13 +222,7 @@ def main():
         qr_content = " ".join(field_contents.values())
 
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-    s.settimeout(5)  # 5 second timeout for connection and commands
-    try:
-        s.connect((args.printer_ip, args.printer_port))
-    except (socket.timeout, socket.error) as e:
-        print(f"Error: Could not connect to printer at {args.printer_ip}:{args.printer_port}", file=sys.stderr)
-        print(f"Details: {e}", file=sys.stderr)
-        sys.exit(1)
+    s.connect((PRINTER_IP, PRINTER_PORT))
 
     try:
         # 1. Text sources (one per field - GTIN, MFG, EXP, BATCH, SN)
@@ -272,7 +239,7 @@ def main():
             text_src_ids[field_name] = r["id"]
             time.sleep(0.3)
 
-        # 2. Barcode source(s) - single (one GS1 text) or multi (GS1 text + date)
+        # 2. Barcode source(s) - single, multi, or dynamic (SN counter + SN-DATE in Data Matrix)
         if barcode_source == "single":
             r = send_command(s, {
                 "request_type": "post", "path": "/data/source", "hash": int(time.time()),
@@ -284,7 +251,7 @@ def main():
                 sys.exit(1)
             barcode_source_list = [{"type": "text", "id": r["id"]}]
             time.sleep(0.3)
-        else:
+        elif barcode_source == "multi":
             # multi: create GS1 text source + date source; barcode concatenates both
             r = send_command(s, {
                 "request_type": "post", "path": "/data/source", "hash": int(time.time()),
@@ -311,20 +278,74 @@ def main():
                 {"type": "date", "id": qr_date_id},
             ]
             time.sleep(0.3)
+        else:
+            # dynamic: prefix + SN(user input) + suffix + date(SN-DATE) - SN-DATE changes on every print
+            r = send_command(s, {
+                "request_type": "post", "path": "/data/source", "hash": int(time.time()),
+                "type": "text", "name": f"{msg_name}_QRPrefix",
+                "attribute": {"content": qr_prefix}
+            })
+            if r.get("status") != "ok":
+                print("Failed QR prefix source:", r)
+                sys.exit(1)
+            qr_prefix_id = r["id"]
+            time.sleep(0.3)
+
+            r = send_command(s, {
+                "request_type": "post", "path": "/data/source", "hash": int(time.time()),
+                "type": "text", "name": f"{msg_name}_SN",
+                "attribute": {"content": values["sn"]}
+            })
+            if r.get("status") != "ok":
+                print("Failed SN source:", r)
+                sys.exit(1)
+            sn_text_id = r["id"]
+            time.sleep(0.3)
+
+            r = send_command(s, {
+                "request_type": "post", "path": "/data/source", "hash": int(time.time()),
+                "type": "text", "name": f"{msg_name}_QRSuffix",
+                "attribute": {"content": qr_suffix}
+            })
+            if r.get("status") != "ok":
+                print("Failed QR suffix source:", r)
+                sys.exit(1)
+            qr_suffix_id = r["id"]
+            time.sleep(0.3)
+
+            r = send_command(s, {
+                "request_type": "post", "path": "/data/source", "hash": int(time.time()),
+                "type": "date", "name": f"{msg_name}_QRDate",
+                "attribute": SN_DATE_SOURCE_ATTR
+            })
+            if r.get("status") != "ok":
+                print("Failed QR date source:", r)
+                sys.exit(1)
+            qr_date_id = r["id"]
+            barcode_source_list = [
+                {"type": "text", "id": qr_prefix_id},
+                {"type": "text", "id": sn_text_id},
+                {"type": "text", "id": qr_suffix_id},
+                {"type": "date", "id": qr_date_id},
+            ]
+            time.sleep(0.3)
 
         # 3. SN-DATE source (printer variable, injected at print time)
         sn_date_src_id = None
         if args.sn_date:
-            r = send_command(s, {
-                "request_type": "post", "path": "/data/source", "hash": int(time.time()),
-                "type": "date", "name": "SN-DATE",
-                "attribute": SN_DATE_SOURCE_ATTR
-            })
-            if r.get("status") != "ok":
-                print("Failed SN-DATE source:", r)
-                sys.exit(1)
-            sn_date_src_id = r["id"]
-            time.sleep(0.3)
+            if barcode_source in ("multi", "dynamic"):
+                sn_date_src_id = qr_date_id  # reuse date from barcode
+            else:
+                r = send_command(s, {
+                    "request_type": "post", "path": "/data/source", "hash": int(time.time()),
+                    "type": "date", "name": "SN-DATE",
+                    "attribute": SN_DATE_SOURCE_ATTR
+                })
+                if r.get("status") != "ok":
+                    print("Failed SN-DATE source:", r)
+                    sys.exit(1)
+                sn_date_src_id = r["id"]
+                time.sleep(0.3)
 
         # 4. Text objects (one per field, each on its own line)
         text_obj_ids = []
@@ -393,7 +414,10 @@ def main():
             sys.exit(1)
 
         print(f"\n[OK] Message '{msg_name}' created (id={r['id']})")
-        print(f"     Barcode source: {barcode_source}, QR: {qr_content[:50]}{'...' if len(qr_content) > 50 else ''}")
+        if barcode_source == "dynamic":
+            print(f"     Data Matrix: SN-DATE dynamic (change on every print), SN from user input")
+        else:
+            print(f"     Barcode source: {barcode_source}, QR: {qr_content[:50]}{'...' if len(qr_content) > 50 else ''}")
         if args.sn_date:
             print(f"     SN-DATE: enabled (printer variable at print time)")
     finally:

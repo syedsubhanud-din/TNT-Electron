@@ -69,6 +69,15 @@ export default function PrintingModule() {
         return `${month}${year}`;
     };
 
+    const formatDateToYYMMDD = (dateString) => {
+        if (!dateString) return '000000';
+        const date = new Date(dateString);
+        const year = String(date.getFullYear()).slice(-2);
+        const month = String(date.getMonth() + 1).padStart(2, '0');
+        // Standard GS1 uses 00 for day when only month/year is present
+        return `${year}${month}00`;
+    };
+
     const handleGenerate = async () => {
         // Basic validation
         if (!formData.mfgDate || !formData.expDate || !formData.gtin || !formData.batch || !formData.serialNumber) {
@@ -243,8 +252,9 @@ export default function PrintingModule() {
     };
 
     // Generate QR Content String for preview
-    // Note: The Python script builds its own GS1 string, this is just for UI display
-    const qrValue = `01${formData.gtin}21${formData.serialNumber}17${formatDateToMMYYYY(formData.expDate)}0010${formData.batch}`;
+    // GS1 format: (01)GTIN (17)EXP (10)BATCH (21)SN
+    // Using \x1D as the GS separator between variable-length fields
+    const qrValue = `01${formData.gtin}17${formatDateToYYMMDD(formData.expDate)}10${formData.batch}\x1D21${formData.serialNumber}`;
 
     return (
         <div className="printing-module-wrapper">
