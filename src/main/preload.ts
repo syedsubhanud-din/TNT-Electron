@@ -21,12 +21,12 @@ const electronHandler = {
     once(channel: Channels, func: (...args: unknown[]) => void) {
       ipcRenderer.once(channel, (_event, ...args) => func(...args));
     },
-    runPython(scriptName: string, args: string[]): Promise<string> {
-      return ipcRenderer.invoke('run-python', scriptName, args);
-    },
-    executePython(action: string, data: string): Promise<any> {
-      return ipcRenderer.invoke('execute-python', action, data);
-    },
+  },
+  runPython(scriptName: string, args: string[]): Promise<string> {
+    return ipcRenderer.invoke('run-python', scriptName, args);
+  },
+  executePython(action: string, data: string): Promise<any> {
+    return ipcRenderer.invoke('execute-python', action, data);
   },
 };
 

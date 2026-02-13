@@ -1,0 +1,5 @@
+python-barcode
+qrcode
+pillow
+fastapi
+uvicorn

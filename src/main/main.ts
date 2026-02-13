@@ -40,28 +40,20 @@ ipcMain.handle('run-python', async (_event, scriptName, args) => {
 
     const scriptPath = path.join(pythonDir, scriptName);
 
-    // On Windows, 'python' often points to the Microsoft Store installer alias.
-    // 'py' is the Python Launcher for Windows and is more reliable if installed.
-    const pythonExecutable = process.platform === 'win32'
-      ? path.join(process.env.LOCALAPPDATA || '', 'Programs\\Python\\Launcher\\py.exe') || 'py'
-      : 'python3';
+    const venvPython = process.platform === 'win32'
+      ? path.join(pythonDir, 'venv', 'Scripts', 'python.exe')
+      : path.join(pythonDir, 'venv', 'bin', 'python');
 
-    // Fallback to just 'py' if the full path check failed or if just relying on PATH is preferred
-    const finalExecutable = process.platform === 'win32' && !pythonExecutable.includes('\\') ? 'py' : pythonExecutable;
-
-    // Use full path if available for robustness as requested
-    // If not, just use 'py' which relies on PATH
-    
-    // Note: For production use on client machines without 'py', you may need to bundle Python
-    // or allow configuration of the python path. 
-    // Here we try to use the launcher which is standard on modern Windows python installs.
+    const fs = require('fs');
+    const finalExecutable = fs.existsSync(venvPython) ? venvPython : (process.platform === 'win32' ? 'py' : 'python3');
 
     console.log(`Executing with: ${finalExecutable} ${scriptPath} ${args.join(' ')}`);
 
     execFile(finalExecutable, [scriptPath, ...args], (error: Error | null, stdout: string, stderr: string) => {
       if (error) {
         console.error(`execFile error: ${error}`);
-        reject(error);
+        const errorMsg = stderr || stdout || error.message;
+        reject(new Error(errorMsg));
         return;
       }
       if (stderr) {
@@ -79,10 +71,14 @@ ipcMain.handle('execute-python', async (_event, action, data) => {
       ? path.join(process.resourcesPath, 'python')
       : path.join(__dirname, '../../python');
 
+    const venvPython = process.platform === 'win32'
+      ? path.join(pythonDir, 'venv', 'Scripts', 'python.exe')
+      : path.join(pythonDir, 'venv', 'bin', 'python');
+
+    const fs = require('fs');
+    const pythonExecutable = fs.existsSync(venvPython) ? venvPython : (process.platform === 'win32' ? 'py' : 'python3');
+
     const scriptPath = path.join(pythonDir, 'print_label.py');
-
-    const pythonExecutable = process.platform === 'win32' ? 'py' : 'python3';
-
     const args = [scriptPath, action, data];
 
     console.log(`Executing: ${pythonExecutable} ${args.join(' ')}`);

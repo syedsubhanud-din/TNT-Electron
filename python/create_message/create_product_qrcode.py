@@ -29,28 +29,45 @@ def make_source_attribute(
 
 
 def send_command(socket_obj, command_dict):
-    """Send a command and wait for response. Prints response for every command."""
-    path = command_dict.get("path", "?")
+    """Send a command and wait for the matching response, ignoring async status updates."""
+    target_path = command_dict.get("path", "?")
     cmd_str = json.dumps(command_dict, separators=(',', ':')) + '\r\n'
     socket_obj.sendall(cmd_str.encode('utf-8'))
-    try:
-        socket_obj.settimeout(5)
-        response = socket_obj.recv(65536)
-        response_str = response.decode(errors='ignore').strip()
-        parsed = json.loads(response_str)
-        resp_str = json.dumps(parsed)
-        if len(resp_str) > 500:
-            resp_str = resp_str[:500] + "...(truncated)"
-        print(f"  [RESPONSE] {path} -> {resp_str}")
-        return parsed
-    except socket.timeout:
-        print(f"  [RESPONSE] {path} -> (timeout)")
-        return None
-    except json.JSONDecodeError:
-        print(f"  [RESPONSE] {path} -> (raw) {response_str[:200]}...")
-        return None
-    finally:
-        socket_obj.settimeout(None)
+    
+    start_time = time.time()
+    while (time.time() - start_time) < 5:
+        try:
+            socket_obj.settimeout(2)
+            response = socket_obj.recv(65536)
+            if not response:
+                break
+                
+            # Responses are separated by \r\n, take the last one or process all
+            lines = response.decode(errors='ignore').strip().split('\r\n')
+            for line in lines:
+                try:
+                    parsed = json.loads(line)
+                    # Verify this is the response for our request
+                    if parsed.get("path") == target_path:
+                        resp_str = json.dumps(parsed)
+                        if len(resp_str) > 500:
+                            resp_str = resp_str[:500] + "...(truncated)"
+                        print(f"  [RESPONSE] {target_path} -> {resp_str}")
+                        return parsed
+                    else:
+                        # Print ignored async updates for debugging
+                        if "print_status" not in line:
+                             print(f"  [IGNORED] {parsed.get('path')} while waiting for {target_path}")
+                except json.JSONDecodeError:
+                    continue
+        except socket.timeout:
+            continue
+        except Exception as e:
+            print(f"  [ERROR] Socket read error: {e}")
+            break
+            
+    print(f"  [RESPONSE] {target_path} -> (timeout or not found)")
+    return None
 
 
 def main():
