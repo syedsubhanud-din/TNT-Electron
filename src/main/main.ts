@@ -15,6 +15,10 @@ import { execFile } from 'child_process';
 import log from 'electron-log';
 import MenuBuilder from './menu';
 import { resolveHtmlPath } from './util';
+import { sequelize } from './database';
+import { registerUserRoutes } from './database/routes/userRoutes/userRoutes';
+import { registerTemplateRoutes } from './database/routes/templateRoutes/templateRoutes';
+import { runSeed } from './database/seeders/initialSeed';
 
 class AppUpdater {
   constructor() {
@@ -266,7 +270,24 @@ app.on('window-all-closed', () => {
 
 app
   .whenReady()
-  .then(() => {
+  .then(async () => {
+    registerUserRoutes();
+    registerTemplateRoutes();
+
+    try {
+      await sequelize.authenticate();
+      console.log('✅ Database connected successfully.');
+      
+      // Crucial: Enable hstore for PostgreSQL to prevent sync errors on User model
+      await sequelize.query('CREATE EXTENSION IF NOT EXISTS hstore;');
+      
+      await sequelize.sync({ alter: true });
+      console.log('✅ Database models synchronized.');
+      await runSeed();
+    } catch (error: any) {
+      console.error('❌ Database initialization failed:', error.message);
+    }
+
     createWindow();
     app.on('activate', () => {
       // On macOS it's common to re-create a window in the app when the

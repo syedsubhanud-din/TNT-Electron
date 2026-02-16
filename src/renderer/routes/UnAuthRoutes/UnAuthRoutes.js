@@ -136,7 +136,7 @@ const Footer = () => {
             justifyContent: 'space-between',
             padding: '0 20px',
             fontSize: '0.75rem',
-            zIndex: 1000,
+            zIndex: 1,
             fontFamily: 'Segoe UI, sans-serif'
         }}>
             <div style={{ display: 'flex', alignItems: 'center', gap: '15px' }}>

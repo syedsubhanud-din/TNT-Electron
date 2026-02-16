@@ -34,6 +34,9 @@ const electronHandler = {
   savePrinterConfig(config: any): Promise<any> {
     return ipcRenderer.invoke('save-printer-config', config);
   },
+  invoke(channel: string, ...args: any[]): Promise<any> {
+    return ipcRenderer.invoke(channel, ...args);
+  },
 };
 
 contextBridge.exposeInMainWorld('electron', electronHandler);
