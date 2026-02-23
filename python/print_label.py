@@ -20,7 +20,7 @@ def main():
         if action == 'create':
             # Data is a JSON string of label info
             label_data = json.loads(data_str)
-            
+
             # Format arguments for create_product_label.py
             args = [
                 sys.executable,
@@ -32,11 +32,11 @@ def main():
                 f"--sn", label_data.get('sn', ''),
                 f"--tmda_reg", label_data.get('trademark', '')
             ]
-            
+
             # Run the script and capture output
             process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             stdout, stderr = process.communicate()
-            
+
             if process.returncode == 0:
                 # Extract message name from output: [OK] Message 'PharmaLabel_123' created
                 import re
@@ -48,27 +48,27 @@ def main():
                     print(json.dumps({"success": True, "output": stdout}))
             else:
                 print(json.dumps({"success": False, "error": stderr or stdout}))
-                
+
         elif action == 'print':
             # Data is the message name
             message_name = data_str
-            
+
             args = [
                 sys.executable,
                 os.path.join(script_dir, 'create_message', 'run_command.py'),
                 "print", "start", message_name
             ]
-            
+
             process = subprocess.Popen(args, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
             stdout, stderr = process.communicate()
-            
+
             if process.returncode == 0:
                 print(json.dumps({"success": True, "output": stdout}))
             else:
                 print(json.dumps({"success": False, "error": stderr or stdout}))
         else:
             print(json.dumps({"success": False, "error": f"Unknown action: {action}"}))
-            
+
     except Exception as e:
         print(json.dumps({"success": False, "error": str(e)}))
 
