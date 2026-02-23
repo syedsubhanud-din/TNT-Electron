@@ -2,7 +2,7 @@
     padding: 0;
     background-color: transparent;
     min-height: calc(100vh - 120px);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-family);
     color: #1e293b;
 }
 
@@ -12,9 +12,10 @@
 
 .config-header h1 {
     font-size: 28px;
-    font-weight: 700;
-    color: #1e293b;
+    font-weight: 800;
+    color: var(--primary-color);
     margin: 0;
+    letter-spacing: -0.5px;
 }
 
 .config-header p {
@@ -92,7 +93,7 @@
 .slider-value {
     font-size: 13px;
     font-weight: 700;
-    color: #0ea5e9;
+    color: var(--accent-color);
 }
 
 input[type="range"] {
@@ -109,7 +110,7 @@ input[type="range"]::-webkit-slider-thumb {
     width: 12px;
     height: 12px;
     background: white;
-    border: 2px solid #0d1b42;
+    border: 2px solid var(--primary-color);
     border-radius: 50%;
     cursor: pointer;
     transition: all 0.2s;
@@ -252,7 +253,7 @@ input[type="range"]::-webkit-slider-thumb {
 }
 
 .btn-primary {
-    background: #0d1b42;
+    background: var(--primary-color);
     color: white;
     border: none;
 }

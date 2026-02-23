@@ -1,16 +1,17 @@
-@import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Public+Sans:wght@300;400;500;600;700;800&display=swap');
 
 :root {
-    --primary-color: #0d1b42;
+    --primary-color: #002D62;
+    --accent-color: #00B5E2;
     --sidebar-bg: #ffffff;
-    --sidebar-text: #555555;
-    --active-bg: #0d1b42;
+    --sidebar-text: #475569;
+    --active-bg: #002D62;
     --active-text: #ffffff;
-    --bg-color: #f4f7fe;
-    --header-height: 60px;
+    --bg-color: #f8fafc;
+    --header-height: 65px;
     --sidebar-width-open: 260px;
     --sidebar-width-collapsed: 80px;
-    --font-family: 'Inter', sans-serif;
+    --font-family: 'Public Sans', sans-serif;
 }
 
 .app-container {
@@ -235,9 +236,10 @@
 }
 
 .main-content .header .header-title {
-    font-size: 1.1rem;
-    font-weight: 600;
-    color: #333;
+    font-size: 1.2rem;
+    font-weight: 800;
+    color: var(--primary-color);
+    letter-spacing: -0.5px;
 }
 
 .main-content .header .header-actions {

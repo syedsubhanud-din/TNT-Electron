@@ -1,6 +1,17 @@
 import React, { useState } from 'react';
 import {
-  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend, AreaChart, Area
+  LineChart,
+  Line,
+  BarChart,
+  Bar,
+  XAxis,
+  YAxis,
+  CartesianGrid,
+  Tooltip,
+  ResponsiveContainer,
+  Legend,
+  AreaChart,
+  Area,
 } from 'recharts';
 import './reports.css';
 
@@ -44,15 +55,47 @@ const Reports = () => {
           <div className="filter-group">
             <label>Date From</label>
             <div className="filter-input-wrapper">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-              <input type="text" value={dateFrom} onChange={(e) => setDateFrom(e.target.value)} />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <input
+                type="text"
+                value={dateFrom}
+                onChange={(e) => setDateFrom(e.target.value)}
+              />
             </div>
           </div>
           <div className="filter-group">
             <label>Date To</label>
             <div className="filter-input-wrapper">
-              <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect><line x1="16" y1="2" x2="16" y2="6"></line><line x1="8" y1="2" x2="8" y2="6"></line><line x1="3" y1="10" x2="21" y2="10"></line></svg>
-              <input type="text" value={dateTo} onChange={(e) => setDateTo(e.target.value)} />
+              <svg
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <rect x="3" y="4" width="18" height="18" rx="2" ry="2"></rect>
+                <line x1="16" y1="2" x2="16" y2="6"></line>
+                <line x1="8" y1="2" x2="8" y2="6"></line>
+                <line x1="3" y1="10" x2="21" y2="10"></line>
+              </svg>
+              <input
+                type="text"
+                value={dateTo}
+                onChange={(e) => setDateTo(e.target.value)}
+              />
             </div>
           </div>
           <div className="filter-group">
@@ -78,15 +121,52 @@ const Reports = () => {
         </div>
         <div className="filter-actions">
           <button className="btn btn-primary">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon></svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <polygon points="22 3 2 3 10 12.46 10 19 14 21 14 12.46 22 3"></polygon>
+            </svg>
             Apply Filters
           </button>
           <button className="btn btn-outline">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
             Export CSV
           </button>
           <button className="btn btn-outline">
-            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path><polyline points="7 10 12 15 17 10"></polyline><line x1="12" y1="15" x2="12" y2="3"></line></svg>
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+              <polyline points="7 10 12 15 17 10"></polyline>
+              <line x1="12" y1="15" x2="12" y2="3"></line>
+            </svg>
             Export PDF
           </button>
         </div>
@@ -99,20 +179,72 @@ const Reports = () => {
           <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={productionData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#eee"
+                />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 12 }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 12 }}
+                />
                 <Tooltip />
-                <Line type="monotone" dataKey="good" stroke="#22c55e" strokeWidth={3} dot={{r: 4, fill: '#22c55e'}} activeDot={{r: 6}} />
-                <Line type="monotone" dataKey="rejected" stroke="#ef4444" strokeWidth={3} dot={{r: 4, fill: '#ef4444'}} activeDot={{r: 6}} />
-                <Line type="monotone" dataKey="total" stroke="#0d1b42" strokeWidth={3} dot={{r: 4, fill: '#0d1b42'}} activeDot={{r: 6}} />
+                <Line
+                  type="monotone"
+                  dataKey="good"
+                  stroke="#22c55e"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#22c55e' }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="rejected"
+                  stroke="#ef4444"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#ef4444' }}
+                  activeDot={{ r: 6 }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="total"
+                  stroke="#002D62"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#002D62' }}
+                  activeDot={{ r: 6 }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
           <div className="custom-legend">
-            <div className="legend-item"><span className="legend-dot" style={{backgroundColor: '#22c55e'}}></span> Good Products</div>
-            <div className="legend-item"><span className="legend-dot" style={{backgroundColor: '#ef4444'}}></span> Rejected</div>
-            <div className="legend-item"><span className="legend-dot" style={{backgroundColor: '#0d1b42'}}></span> Total</div>
+            <div className="legend-item">
+              <span
+                className="legend-dot"
+                style={{ backgroundColor: '#22c55e' }}
+              ></span>{' '}
+              Good Products
+            </div>
+            <div className="legend-item">
+              <span
+                className="legend-dot"
+                style={{ backgroundColor: '#ef4444' }}
+              ></span>{' '}
+              Rejected
+            </div>
+            <div className="legend-item">
+              <span
+                className="legend-dot"
+                style={{ backgroundColor: '#002D62' }}
+              ></span>{' '}
+              Total
+            </div>
           </div>
         </section>
 
@@ -122,18 +254,43 @@ const Reports = () => {
           <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
               <BarChart data={productionData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#eee"
+                />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 12 }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 12 }}
+                />
                 <Tooltip />
-                <Bar dataKey="good" fill="#166534" radius={[4, 4, 0, 0]} />
-                <Bar dataKey="rejected" fill="#991b1b" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="good" fill="#10b981" radius={[4, 4, 0, 0]} />
+                <Bar dataKey="rejected" fill="#ef4444" radius={[4, 4, 0, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
           <div className="custom-legend">
-            <div className="legend-item"><span className="legend-dot" style={{backgroundColor: '#166534'}}></span> Good Products</div>
-            <div className="legend-item"><span className="legend-dot" style={{backgroundColor: '#991b1b'}}></span> Rejected</div>
+            <div className="legend-item">
+              <span
+                className="legend-dot"
+                style={{ backgroundColor: '#10b981' }}
+              ></span>{' '}
+              Good Products
+            </div>
+            <div className="legend-item">
+              <span
+                className="legend-dot"
+                style={{ backgroundColor: '#ef4444' }}
+              ></span>{' '}
+              Rejected
+            </div>
           </div>
         </section>
 
@@ -143,18 +300,55 @@ const Reports = () => {
           <div className="chart-container">
             <ResponsiveContainer width="100%" height="100%">
               <LineChart data={trendData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
-                <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
-                <YAxis axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#eee"
+                />
+                <XAxis
+                  dataKey="name"
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 12 }}
+                />
+                <YAxis
+                  axisLine={false}
+                  tickLine={false}
+                  tick={{ fill: '#94a3b8', fontSize: 12 }}
+                />
                 <Tooltip />
-                <Line type="monotone" dataKey="cartons" stroke="#0ea5e9" strokeWidth={3} dot={{r: 4, fill: '#0ea5e9'}} />
-                <Line type="monotone" dataKey="pallets" stroke="#f59e0b" strokeWidth={3} dot={{r: 4, fill: '#f59e0b'}} />
+                <Line
+                  type="monotone"
+                  dataKey="cartons"
+                  stroke="#00B5E2"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#00B5E2' }}
+                />
+                <Line
+                  type="monotone"
+                  dataKey="pallets"
+                  stroke="#f59e0b"
+                  strokeWidth={3}
+                  dot={{ r: 4, fill: '#f59e0b' }}
+                />
               </LineChart>
             </ResponsiveContainer>
           </div>
           <div className="custom-legend">
-            <div className="legend-item"><span className="legend-dot" style={{backgroundColor: '#0ea5e9'}}></span> Cartons</div>
-            <div className="legend-item"><span className="legend-dot" style={{backgroundColor: '#f59e0b'}}></span> Pallets</div>
+            <div className="legend-item">
+              <span
+                className="legend-dot"
+                style={{ backgroundColor: '#00B5E2' }}
+              ></span>{' '}
+              Cartons
+            </div>
+            <div className="legend-item">
+              <span
+                className="legend-dot"
+                style={{ backgroundColor: '#f59e0b' }}
+              ></span>{' '}
+              Pallets
+            </div>
           </div>
         </section>
 
@@ -169,17 +363,23 @@ const Reports = () => {
             </div>
             <div className="summary-item">
               <div className="summary-label">Success Rate</div>
-              <div className="summary-value" style={{color: '#10b981'}}>98.2%</div>
+              <div className="summary-value" style={{ color: '#10b981' }}>
+                98.2%
+              </div>
               <div className="summary-subtext">Good product ratio</div>
             </div>
             <div className="summary-item">
               <div className="summary-label">Total Cartons</div>
-              <div className="summary-value" style={{color: '#0ea5e9'}}>2,917</div>
+              <div className="summary-value" style={{ color: '#00B5E2' }}>
+                2,917
+              </div>
               <div className="summary-subtext">Cartons processed</div>
             </div>
             <div className="summary-item">
               <div className="summary-label">Total Pallets</div>
-              <div className="summary-value" style={{color: '#f59e0b'}}>190</div>
+              <div className="summary-value" style={{ color: '#f59e0b' }}>
+                190
+              </div>
               <div className="summary-subtext">Pallets completed</div>
             </div>
           </div>

@@ -2,7 +2,7 @@
     padding: 0;
     background-color: transparent;
     min-height: calc(100vh - 120px);
-    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+    font-family: var(--font-family);
     color: #1e293b;
 }
 
@@ -12,9 +12,10 @@
 
 .dashboard-header h1 {
     font-size: 28px;
-    font-weight: 700;
-    color: #1e293b;
+    font-weight: 800;
+    color: var(--primary-color);
     margin: 0;
+    letter-spacing: -0.5px;
 }
 
 .dashboard-header p {
@@ -442,7 +443,7 @@
 }
 
 .action-icon:hover {
-    color: #0d1b42;
+    color: var(--primary-color);
 }
 
 /* Pagination Row */

@@ -16,10 +16,11 @@
 }
 
 .printing-module-wrapper .page-header h1 {
-    font-size: 1.5rem;
-    font-weight: 700;
-    color: #1a1a1a;
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--primary-color);
     margin: 0 0 5px 0;
+    letter-spacing: -0.5px;
 }
 
 .printing-module-wrapper .page-header .subtitle {
@@ -51,9 +52,9 @@
 }
 
 .btn-settings.active {
-    background: #0d1b42;
+    background: var(--primary-color);
     color: #fff;
-    border-color: #0d1b42;
+    border-color: var(--primary-color);
 }
 
 /* Settings Panel */
@@ -116,7 +117,7 @@
 
 .btn-save {
     padding: 10px 20px;
-    background: #0d1b42;
+    background: var(--primary-color);
     color: #fff;
     border: none;
     border-radius: 6px;
@@ -201,8 +202,8 @@
 
 .printing-module-container .left-panel .form-group input:focus {
     outline: none;
-    border-color: #0d1b42;
-    box-shadow: 0 0 0 3px rgba(13, 27, 66, 0.05);
+    border-color: var(--primary-color);
+    box-shadow: 0 0 0 3px rgba(0, 45, 98, 0.05);
 }
 
 .printing-module-container .left-panel .form-group input::placeholder {
@@ -238,7 +239,7 @@
     flex: 1;
     min-width: 350px;
     /* Optional: make it sticky if the left side is long, so preview is always visible */
-    /* position: sticky; 
+    /* position: sticky;
     top: 20px; */
     height: fit-content;
     /* Only take necessary height */
@@ -371,7 +372,7 @@
 
 /* Button Variants */
 .action-bar button.btn-primary {
-    background-color: #00bcd4;
+    background-color: var(--accent-color);
     color: white;
 }
 
