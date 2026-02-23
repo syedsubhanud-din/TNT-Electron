@@ -4,24 +4,85 @@ import './camera-data-capture.css';
 export default function CameraDataCapture() {
   const [captureState, setCaptureState] = useState('idle'); // 'idle', 'capturing', 'paused'
   const [detectionData, setDetectionData] = useState({
-    qrCode: '00012345678905',
-    confidence: 98.5,
-    status: 'good',
+    qrCode: 'No detection',
+    confidence: 0,
+    status: 'idle',
   });
 
   const [pythonPid, setPythonPid] = useState(null);
   const [captureError, setCaptureError] = useState(null);
+  const [logs, setLogs] = useState([]);
+
+  const addLog = (type, message) => {
+    const now = new Date();
+    const time = now.toLocaleTimeString([], { hour12: false });
+    setLogs((prev) => [{ type, time, message }, ...prev].slice(0, 100));
+  };
 
   useEffect(() => {
-    // Start the python script on component mount
-    // handleStartCapture();
+    if (!pythonPid) return;
 
-    // Cleanup: kill the python script when the component unmounts
+    const removeStdout = window.electron.ipcRenderer.on(
+      'python-stdout',
+      (payload) => {
+        const { pid, data } = payload;
+        if (pid === pythonPid) {
+          const lines = data.split('\n');
+          lines.forEach((line) => {
+            if (!line.trim()) return;
+
+            // Check for "Scanned: <value>"
+            if (line.includes('Scanned:')) {
+              const match = line.match(/Scanned:\s+(.*)/);
+              if (match) {
+                const qrCodeValue = match[1].trim();
+                setDetectionData({
+                  qrCode: qrCodeValue,
+                  confidence: 99.8,
+                  status: 'good',
+                });
+                addLog('success', `Detected QR Code: ${qrCodeValue}`);
+              }
+            }
+          });
+        }
+      },
+    );
+
+    const removeStderr = window.electron.ipcRenderer.on(
+      'python-stderr',
+      (payload) => {
+        const { pid, data } = payload;
+        if (pid === pythonPid) {
+          addLog('error', data.trim());
+        }
+      },
+    );
+
+    const removeExit = window.electron.ipcRenderer.on(
+      'python-exit',
+      (payload) => {
+        const { pid, code } = payload;
+        if (pid === pythonPid) {
+          addLog('warning', `Python process exited with code ${code}`);
+          setPythonPid(null);
+          setCaptureState('idle');
+        }
+      },
+    );
+
     return () => {
+      removeStdout();
+      removeStderr();
+      removeExit();
+    };
+  }, [pythonPid]);
+
+  useEffect(() => {
+    return () => {
+      // Ensure the python script is stopped when leaving this page
       if (pythonPid) {
-        window.electron.stopPython(pythonPid).then(() => {
-          console.log('Python script stopped on unmount');
-        });
+        window.electron.stopPython(pythonPid);
       }
     };
   }, [pythonPid]);
@@ -29,6 +90,11 @@ export default function CameraDataCapture() {
   const handleStartCapture = async () => {
     setCaptureState('capturing');
     setCaptureError(null);
+    setDetectionData({
+      qrCode: 'Scanning...',
+      confidence: 0,
+      status: 'idle',
+    });
     try {
       console.log('Starting Python capture script in background...');
 
@@ -37,6 +103,7 @@ export default function CameraDataCapture() {
         ['--interval', '0.2', '--batch-size', '10', '--batch-flush-sec', '1'],
         { background: true },
       );
+      console.log('result Data: ', result);
 
       if (result.success) {
         console.log('Python script started with PID:', result.pid);
@@ -290,15 +357,27 @@ export default function CameraDataCapture() {
                   stroke="currentColor"
                   strokeWidth="2"
                 >
-                  <polyline points="20 6 9 17 4 12"></polyline>
+                  {detectionData.status === 'good' ? (
+                    <polyline points="20 6 9 17 4 12"></polyline>
+                  ) : (
+                    <circle cx="12" cy="12" r="10"></circle>
+                  )}
                 </svg>
-                Good Detection
+                {detectionData.status === 'good'
+                  ? 'Good Detection'
+                  : detectionData.status === 'idle'
+                    ? 'Waiting for scan'
+                    : 'Searching...'}
               </div>
             </div>
 
             <div className="info-section">
               <label>Detected QR Code</label>
-              <div className="qr-code-display">{detectionData.qrCode}</div>
+              <div
+                className={`qr-code-display ${detectionData.status === 'good' ? 'good' : ''}`}
+              >
+                {detectionData.qrCode}
+              </div>
             </div>
 
             <div className="info-section">
@@ -307,14 +386,22 @@ export default function CameraDataCapture() {
                 <div className="confidence-bar">
                   <div
                     className="confidence-fill"
-                    style={{ width: `${detectionData.confidence}%` }}
+                    style={{
+                      width: `${detectionData.confidence}%`,
+                      background:
+                        detectionData.status === 'good' ? '#28a745' : undefined,
+                    }}
                   ></div>
                 </div>
                 <span className="confidence-value">
                   {detectionData.confidence}%
                 </span>
               </div>
-              <span className="confidence-label">Excellent confidence</span>
+              <span className="confidence-label">
+                {detectionData.status === 'good'
+                  ? 'Excellent confidence'
+                  : 'Awaiting signal'}
+              </span>
             </div>
           </div>
         </div>
@@ -325,42 +412,18 @@ export default function CameraDataCapture() {
         <h3>Detection Logs</h3>
 
         <div className="logs-container">
-          <div className="log-entry warning">
-            <div className="log-header">
-              <div className="log-badge-wrapper">
-                <span className="log-dot"></span>
-                <span className="log-badge">WARNING</span>
+          {logs.map((log, index) => (
+            <div key={index} className={`log-entry ${log.type}`}>
+              <div className="log-header">
+                <div className="log-badge-wrapper">
+                  <span className="log-dot"></span>
+                  <span className="log-badge">{log.type.toUpperCase()}</span>
+                </div>
+                <span className="log-time">[{log.time}]</span>
               </div>
-              <span className="log-time">14:30:15</span>
+              <div className="log-message">{log.message}</div>
             </div>
-            <div className="log-message">
-              Low confidence detection - Manual review required
-            </div>
-          </div>
-
-          <div className="log-entry error">
-            <div className="log-header">
-              <div className="log-badge-wrapper">
-                <span className="log-dot"></span>
-                <span className="log-badge">ERROR</span>
-              </div>
-              <span className="log-time">14:25:42</span>
-            </div>
-            <div className="log-message">QR code format validation failed</div>
-          </div>
-
-          <div className="log-entry info">
-            <div className="log-header">
-              <div className="log-badge-wrapper">
-                <span className="log-dot"></span>
-                <span className="log-badge">INFO</span>
-              </div>
-              <span className="log-time">14:20:18</span>
-            </div>
-            <div className="log-message">
-              Camera focus adjustment recommended
-            </div>
-          </div>
+          ))}
         </div>
       </div>
     </div>

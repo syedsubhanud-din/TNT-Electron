@@ -73,11 +73,49 @@ ipcMain.handle('run-python', async (_event, scriptName, args, options = {}) => {
     console.log(
       `Spawning background process: ${pythonExecutable} ${scriptPath} ${args.join(' ')}`,
     );
-    const child = spawn(pythonExecutable, [scriptPath, ...args], {
-      detached: true,
-      stdio: 'ignore',
+    const child = spawn(pythonExecutable, [scriptPath, ...args]);
+
+    child.stdout.on('data', (data) => {
+      const output = data.toString();
+      const lines = output.split('\n');
+      lines.forEach((line: string) => {
+        if (!line.trim()) return;
+        if (line.includes('Flushed')) return;
+
+        if (line.includes('Scanned:')) {
+          console.log(
+            `\x1b[32m[Python PID ${child.pid}] stdout: ${line.trim()}\x1b[0m`,
+          );
+        } else {
+          console.log(`[Python PID ${child.pid}] stdout: ${line.trim()}`);
+        }
+      });
+      _event.sender.send('python-stdout', { pid: child.pid, data: output });
     });
-    child.unref();
+
+    child.stderr.on('data', (data) => {
+      const output = data.toString();
+      const lines = output.split('\n');
+      lines.forEach((line: string) => {
+        if (!line.trim()) return;
+        if (line.includes('Flushed')) return;
+
+        if (line.includes('Scanned:')) {
+          console.error(
+            `\x1b[32m[Python PID ${child.pid}] stderr: ${line.trim()}\x1b[0m`,
+          );
+        } else {
+          console.error(`[Python PID ${child.pid}] stderr: ${line.trim()}`);
+        }
+      });
+      _event.sender.send('python-stderr', { pid: child.pid, data: output });
+    });
+
+    child.on('close', (code) => {
+      console.log(`[Python PID ${child.pid}] process exited with code ${code}`);
+      _event.sender.send('python-exit', { pid: child.pid, code });
+    });
+
     return { success: true, pid: child.pid };
   }
 

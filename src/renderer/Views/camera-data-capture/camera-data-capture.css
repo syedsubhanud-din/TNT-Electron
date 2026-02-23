@@ -406,6 +406,16 @@
   background-color: #e0f7fa;
 }
 
+.log-entry.success {
+  border-left-color: #28a745;
+  background-color: #e8f5e9;
+}
+
+.log-entry.success .log-message {
+  color: #155724;
+  font-weight: 600;
+}
+
 .log-header {
   display: flex;
   justify-content: space-between;
@@ -437,6 +447,10 @@
   background-color: #00bcd4;
 }
 
+.log-entry.success .log-dot {
+  background-color: #28a745;
+}
+
 .log-badge {
   font-size: 0.75rem;
   font-weight: 700;
@@ -457,6 +471,11 @@
 
 .log-entry.info .log-badge {
   background-color: #00bcd4;
+  color: #fff;
+}
+
+.log-entry.success .log-badge {
+  background-color: #28a745;
   color: #fff;
 }
 
