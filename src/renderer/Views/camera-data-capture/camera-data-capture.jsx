@@ -23,29 +23,57 @@ export default function CameraDataCapture() {
   useEffect(() => {
     if (!pythonPid && !listenPid) return;
 
+    const processPythonLog = (data, type = 'info') => {
+      const lines = data.split('\n');
+      lines.forEach((line) => {
+        let cleanLine = line.trim();
+        if (!cleanLine) return;
+
+        // Strip Python-side timestamps like [10:45:35]
+        cleanLine = cleanLine.replace(/\[\d{2}:\d{2}:\d{2}\]\s*/g, '').trim();
+        if (!cleanLine) return;
+
+        // Handle "Scanned:" logs
+        if (cleanLine.includes('Scanned:')) {
+          const match = cleanLine.match(/Scanned:\s+(.*)/);
+          if (match) {
+            const qrCodeValue = match[1].trim();
+            setDetectionData({
+              qrCode: qrCodeValue,
+              confidence: 99.8,
+              status: 'good',
+            });
+            addLog('success', `Detected QR Code: ${qrCodeValue}`);
+            return;
+          }
+        }
+
+        // Handle "RECEIVED:" logs
+        if (cleanLine.includes('RECEIVED:')) {
+          const match = cleanLine.match(/RECEIVED:\s+(.*)/);
+          if (match) {
+            const receivedValue = match[1].trim();
+            setDetectionData({
+              qrCode: receivedValue,
+              confidence: 99.8,
+              status: 'good',
+            });
+            addLog('info', `Received: ${receivedValue}`);
+            return;
+          }
+        }
+
+        // Default: Add as Info log (as requested by user "ye sab INFO section ma show ho")
+        addLog('info', cleanLine);
+      });
+    };
+
     const removeStdout = window.electron.ipcRenderer.on(
       'python-stdout',
       (payload) => {
         const { pid, data } = payload;
         if (pid === pythonPid || pid === listenPid) {
-          const lines = data.split('\n');
-          lines.forEach((line) => {
-            if (!line.trim()) return;
-
-            // Check for "Scanned: <value>"
-            if (line.includes('Scanned:')) {
-              const match = line.match(/Scanned:\s+(.*)/);
-              if (match) {
-                const qrCodeValue = match[1].trim();
-                setDetectionData({
-                  qrCode: qrCodeValue,
-                  confidence: 99.8,
-                  status: 'good',
-                });
-                addLog('success', `Detected QR Code: ${qrCodeValue}`);
-              }
-            }
-          });
+          processPythonLog(data, 'info');
         }
       },
     );
@@ -55,7 +83,8 @@ export default function CameraDataCapture() {
       (payload) => {
         const { pid, data } = payload;
         if (pid === pythonPid || pid === listenPid) {
-          addLog('error', data.trim());
+          // Many Python logs go to stderr; treat them as info as requested
+          processPythonLog(data, 'info');
         }
       },
     );
@@ -85,7 +114,7 @@ export default function CameraDataCapture() {
       removeStderr();
       removeExit();
     };
-  }, [pythonPid]);
+  }, [pythonPid, listenPid]);
 
   useEffect(() => {
     return () => {
