@@ -7,6 +7,11 @@ export default function CameraDataCapture() {
     qrCode: 'No detection',
     confidence: 0,
     status: 'idle',
+    parsed: {
+      gtin: '',
+      batch: '',
+      mfgDate: '',
+    },
   });
 
   const [pythonPid, setPythonPid] = useState(null);
@@ -20,6 +25,45 @@ export default function CameraDataCapture() {
     const now = new Date();
     const time = now.toLocaleTimeString([], { hour12: false });
     setLogs((prev) => [{ type, time, message }, ...prev].slice(0, 100));
+  };
+
+  const parseBarcode = (barcode) => {
+    const result = {
+      gtin: '',
+      batch: '',
+      mfgDate: '',
+    };
+
+    if (
+      !barcode ||
+      barcode === 'No detection' ||
+      barcode === 'Scanning...' ||
+      barcode === 'Searching...'
+    ) {
+      return result;
+    }
+
+    // Pattern to match (XX) followed by text until the next (XX) or end of string
+    // This handles codes like (01)08964001713210(10)T24029(17)251210
+    const matches = barcode.matchAll(/\((\d{2,4})\)([^()]+)/g);
+
+    for (const match of matches) {
+      const ai = match[1];
+      let value = match[2].trim();
+
+      // Strip "!ERROR" if it exists in the value
+      value = value.replace(/!ERROR/g, '').trim();
+
+      // Updated mapping based on user request:
+      // (01) -> GTIN Number
+      // (10) -> Batch Number
+      // (17) -> Manufacturing Date
+      if (ai === '01') result.gtin = value;
+      else if (ai === '10') result.batch = value;
+      else if (ai === '17') result.mfgDate = value;
+    }
+
+    return result;
   };
 
   useEffect(() => {
@@ -40,10 +84,12 @@ export default function CameraDataCapture() {
           const match = cleanLine.match(/Scanned:\s+(.*)/);
           if (match) {
             const qrCodeValue = match[1].trim();
+            const parsed = parseBarcode(qrCodeValue);
             setDetectionData({
               qrCode: qrCodeValue,
               confidence: 99.8,
               status: 'good',
+              parsed,
             });
             addLog('success', `Detected QR Code: ${qrCodeValue}`);
             return;
@@ -55,10 +101,12 @@ export default function CameraDataCapture() {
           const match = cleanLine.match(/RECEIVED:\s+(.*)/);
           if (match) {
             const receivedValue = match[1].trim();
+            const parsed = parseBarcode(receivedValue);
             setDetectionData({
               qrCode: receivedValue,
               confidence: 99.8,
               status: 'good',
+              parsed,
             });
             addLog('info', `Received: ${receivedValue}`);
             return;
@@ -137,6 +185,7 @@ export default function CameraDataCapture() {
       qrCode: 'Scanning...',
       confidence: 0,
       status: 'idle',
+      parsed: { gtin: '', batch: '', mfgDate: '' },
     });
     try {
       console.log('Starting Python capture script in background...');
@@ -275,7 +324,13 @@ export default function CameraDataCapture() {
         if (Array.isArray(parsed)) {
           console.log('scan History Data', parsed);
 
-          setHistoryData(parsed);
+          // Add parsed components to each history item
+          const enhancedData = parsed.map((item) => ({
+            ...item,
+            parsed: parseBarcode(item.barcode_value),
+          }));
+
+          setHistoryData(enhancedData);
           addLog('info', `Loaded ${parsed.length} historical scans`);
         } else if (parsed.error) {
           addLog('error', `History error: ${parsed.error}`);
@@ -378,20 +433,51 @@ export default function CameraDataCapture() {
 
           <div className="camera-controls">
             {captureState === 'idle' && (
-              <button className="btn-start" onClick={handleStartCapture}>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <circle cx="12" cy="12" r="10"></circle>
-                  <polygon points="10 8 16 12 10 16 10 8"></polygon>
-                </svg>
-                Start Capture
-              </button>
+              <div
+                className="main-action-group"
+                style={{ display: 'flex', gap: '10px' }}
+              >
+                <button className="btn-start" onClick={handleStartCapture}>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <circle cx="12" cy="12" r="10"></circle>
+                    <polygon points="10 8 16 12 10 16 10 8"></polygon>
+                  </svg>
+                  Start Capture
+                </button>
+
+                {!listenPid && (
+                  <button
+                    className="btn-start"
+                    onClick={handleStartListen}
+                    style={{
+                      background: '#007bff',
+                      borderColor: '#007bff',
+                    }}
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                      <line x1="12" y1="19" x2="12" y2="23"></line>
+                      <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                    Start Listen
+                  </button>
+                )}
+              </div>
             )}
 
             {captureState === 'capturing' && (
@@ -418,7 +504,6 @@ export default function CameraDataCapture() {
                     style={{
                       background: '#007bff',
                       borderColor: '#007bff',
-                      marginLeft: '10px',
                     }}
                   >
                     <svg
@@ -536,13 +621,36 @@ export default function CameraDataCapture() {
             </div>
 
             <div className="info-section">
-              <label>Detected QR Code</label>
+              <label>Detected Barcode</label>
               <div
                 className={`qr-code-display ${detectionData.status === 'good' ? 'good' : ''}`}
               >
                 {detectionData.qrCode}
               </div>
             </div>
+
+            {detectionData.status === 'good' && (
+              <div className="parsed-data-grid">
+                <div className="info-section">
+                  <label>GTIN Number</label>
+                  <div className="parsed-value">
+                    {detectionData.parsed.gtin || '-'}
+                  </div>
+                </div>
+                <div className="info-section">
+                  <label>Batch Number</label>
+                  <div className="parsed-value">
+                    {detectionData.parsed.batch || '-'}
+                  </div>
+                </div>
+                <div className="info-section">
+                  <label>Manufacturing Date</label>
+                  <div className="parsed-value">
+                    {detectionData.parsed.mfgDate || '-'}
+                  </div>
+                </div>
+              </div>
+            )}
 
             <div className="info-section">
               <label>Detection Confidence</label>
@@ -620,7 +728,10 @@ export default function CameraDataCapture() {
             <thead>
               <tr>
                 <th>ID</th>
-                <th>Barcode Value</th>
+                <th>GTIN</th>
+                <th>Batch</th>
+                <th>MFG Date</th>
+                {/* <th>Full Barcode</th> */}
                 <th>Scanned At</th>
               </tr>
             </thead>
@@ -629,7 +740,12 @@ export default function CameraDataCapture() {
                 historyData.map((scan) => (
                   <tr key={scan.id}>
                     <td>{scan.id}</td>
-                    <td className="barcode-cell">{scan.barcode_value}</td>
+                    <td className="parsed-cell">{scan.parsed?.gtin || '-'}</td>
+                    <td className="parsed-cell">{scan.parsed?.batch || '-'}</td>
+                    <td className="parsed-cell">
+                      {scan.parsed?.mfgDate || '-'}
+                    </td>
+                    {/* <td className="barcode-cell small">{scan.barcode_value}</td> */}
                     <td className="time-cell">
                       {new Date(scan.scanned_at).toLocaleString()}
                     </td>
@@ -637,7 +753,7 @@ export default function CameraDataCapture() {
                 ))
               ) : (
                 <tr>
-                  <td colSpan="3" className="no-data">
+                  <td colSpan="6" className="no-data">
                     No scans found in database
                   </td>
                 </tr>
