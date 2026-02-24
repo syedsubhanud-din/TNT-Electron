@@ -10,6 +10,7 @@ export default function CameraDataCapture() {
   });
 
   const [pythonPid, setPythonPid] = useState(null);
+  const [listenPid, setListenPid] = useState(null);
   const [captureError, setCaptureError] = useState(null);
   const [logs, setLogs] = useState([]);
 
@@ -20,13 +21,13 @@ export default function CameraDataCapture() {
   };
 
   useEffect(() => {
-    if (!pythonPid) return;
+    if (!pythonPid && !listenPid) return;
 
     const removeStdout = window.electron.ipcRenderer.on(
       'python-stdout',
       (payload) => {
         const { pid, data } = payload;
-        if (pid === pythonPid) {
+        if (pid === pythonPid || pid === listenPid) {
           const lines = data.split('\n');
           lines.forEach((line) => {
             if (!line.trim()) return;
@@ -53,7 +54,7 @@ export default function CameraDataCapture() {
       'python-stderr',
       (payload) => {
         const { pid, data } = payload;
-        if (pid === pythonPid) {
+        if (pid === pythonPid || pid === listenPid) {
           addLog('error', data.trim());
         }
       },
@@ -64,9 +65,17 @@ export default function CameraDataCapture() {
       (payload) => {
         const { pid, code } = payload;
         if (pid === pythonPid) {
-          addLog('warning', `Python process exited with code ${code}`);
+          console.log(`Capture process (PID ${pid}) exited with code ${code}`);
           setPythonPid(null);
-          setCaptureState('idle');
+          // Only return to idle if no other process is active/starting
+          setCaptureState((current) => {
+            if (current === 'capturing' || current === 'paused') return current;
+            return 'idle';
+          });
+        } else if (pid === listenPid) {
+          console.log(`Listen process (PID ${pid}) exited with code ${code}`);
+          setListenPid(null);
+          addLog('warning', `Listen process stopped (code ${code})`);
         }
       },
     );
@@ -80,12 +89,15 @@ export default function CameraDataCapture() {
 
   useEffect(() => {
     return () => {
-      // Ensure the python script is stopped when leaving this page
+      // Ensure both python scripts are stopped when leaving this page
       if (pythonPid) {
         window.electron.stopPython(pythonPid);
       }
+      if (listenPid) {
+        window.electron.stopPython(listenPid);
+      }
     };
-  }, [pythonPid]);
+  }, [pythonPid, listenPid]);
 
   const handleStartCapture = async () => {
     setCaptureState('capturing');
@@ -108,12 +120,58 @@ export default function CameraDataCapture() {
       if (result.success) {
         console.log('Python script started with PID:', result.pid);
         setPythonPid(result.pid);
+        addLog('info', 'Capture mode started');
       } else {
         throw new Error(result.error || 'Failed to start Python script');
       }
     } catch (error) {
       console.error('Failed to trigger Python script:', error);
       setCaptureError(error.message);
+      setCaptureState('idle');
+      addLog('error', `Failed to start capture: ${error.message}`);
+    }
+  };
+
+  const handleStartListen = async () => {
+    if (listenPid) {
+      addLog('warning', 'Listen mode is already running');
+      return;
+    }
+
+    try {
+      // If capture mode is running, we MUST stop it first to free the camera's TCP port
+      if (pythonPid) {
+        addLog('info', 'Switching to listen mode, stopping regular capture...');
+        await window.electron.stopPython(pythonPid);
+        setPythonPid(null);
+        // Wait a small moment for port to release
+        await new Promise((resolve) => setTimeout(resolve, 500));
+      }
+
+      console.log('Starting Python listen script in background...');
+      addLog('info', 'Starting listen mode (mv.py --listen)...');
+
+      // Keep state as capturing so the stream iframe stays visible
+      setCaptureState('capturing');
+
+      const result = await window.electron.runPython(
+        'create_message/mv.py',
+        ['--listen'],
+        { background: true },
+      );
+
+      if (result.success) {
+        console.log('Python listen script started with PID:', result.pid);
+        setListenPid(result.pid);
+        addLog('success', 'Listen mode active');
+      } else {
+        throw new Error(result.error || 'Failed to start Python listen script');
+      }
+    } catch (error) {
+      console.error('Failed to trigger Python listen script:', error);
+      addLog('error', `Failed to start listen: ${error.message}`);
+      // Only go idle if we don't have pythonPid either
+      if (!pythonPid) setCaptureState('idle');
     }
   };
 
@@ -148,9 +206,16 @@ export default function CameraDataCapture() {
         setPythonPid(null);
       }
 
+      // Stop the listen script
+      if (listenPid) {
+        await window.electron.stopPython(listenPid);
+        setListenPid(null);
+      }
+
       // Stop the printer
       await window.electron.executePython('stop', '');
-      console.log('Printer stopped');
+      console.log('Stopped all processes');
+      addLog('warning', 'All processes stopped');
     } catch (error) {
       console.error('Error during stop:', error);
     }
@@ -259,20 +324,49 @@ export default function CameraDataCapture() {
             )}
 
             {captureState === 'capturing' && (
-              <button className="btn-pause" onClick={handlePause}>
-                <svg
-                  width="18"
-                  height="18"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="2"
-                >
-                  <rect x="6" y="4" width="4" height="16"></rect>
-                  <rect x="14" y="4" width="4" height="16"></rect>
-                </svg>
-                Pause
-              </button>
+              <>
+                <button className="btn-pause" onClick={handlePause}>
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <rect x="6" y="4" width="4" height="16"></rect>
+                    <rect x="14" y="4" width="4" height="16"></rect>
+                  </svg>
+                  Pause
+                </button>
+
+                {!listenPid && (
+                  <button
+                    className="btn-start"
+                    onClick={handleStartListen}
+                    style={{
+                      background: '#007bff',
+                      borderColor: '#007bff',
+                      marginLeft: '10px',
+                    }}
+                  >
+                    <svg
+                      width="18"
+                      height="18"
+                      viewBox="0 0 24 24"
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="2"
+                    >
+                      <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"></path>
+                      <path d="M19 10v2a7 7 0 0 1-14 0v-2"></path>
+                      <line x1="12" y1="19" x2="12" y2="23"></line>
+                      <line x1="8" y1="23" x2="16" y2="23"></line>
+                    </svg>
+                    Start Listen
+                  </button>
+                )}
+              </>
             )}
 
             {captureState === 'paused' && (

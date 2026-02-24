@@ -17,6 +17,12 @@ import os
 import threading
 import logging
 from datetime import datetime, timezone
+from pathlib import Path
+
+try:
+    from ftplib import FTP
+except ImportError:
+    FTP = None  # type: ignore
 
 try:
     import psycopg2
@@ -62,21 +68,31 @@ def setup_logging(verbose: bool) -> None:
 class CameraConnection:
     """Persistent TCP connection to MV40 with auto-reconnect."""
 
-    def __init__(self, ip: str, port: int, cmd_delay: float = 0.01):
+    def __init__(
+        self,
+        ip: str,
+        port: int,
+        barcode_tag: str = BARCODE_TAG,
+        cmd_delay: float = 0.01,
+    ):
         self._ip = ip
         self._port = port
+        self._barcode_tag = barcode_tag
         self._cmd_delay = cmd_delay
         self._sock: socket.socket | None = None
 
-    def connect(self) -> None:
+    def connect(self, skip_online: bool = False) -> None:
         if self._sock is not None:
             self.close()
         self._sock = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
         self._sock.settimeout(10.0)
         log.info("Connecting to camera at %s:%d...", self._ip, self._port)
         self._sock.connect((self._ip, self._port))
-        self._send_cmd("ONLINE")
-        log.info("Camera connected, ONLINE sent.")
+        if not skip_online:
+            self._send_cmd("ONLINE")
+            log.info("Camera connected, ONLINE sent.")
+        else:
+            log.info("Camera connected (raw).")
 
     def close(self) -> None:
         if self._sock:
@@ -110,12 +126,26 @@ class CameraConnection:
         except socket.timeout:
             pass
         return b"".join(chunks).decode(errors="replace").strip()
+    
+    def recv_raw(self, size: int = 4096, timeout: float = 1.0) -> bytes:
+        """Read raw bytes from socket. Returns empty bytes on timeout/disconnect."""
+        self._ensure_connected()
+        self._sock.settimeout(timeout)
+        try:
+            return self._sock.recv(size)
+        except socket.timeout:
+            return b""
+        except OSError:
+            return b""
 
     def trigger(self) -> tuple[str | None, str | None]:
-        """Trigger one scan. Returns (value, error). Reconnects on failure."""
+        """Trigger one scan, GET barcode data. Returns (value, error). Reconnects on failure."""
         try:
             self._ensure_connected()
             self._send_cmd("TRIGGER")
+            self._read_response()  # Consume TRIGGER response (!OK)
+            time.sleep(0.2)  # Wait for camera to process
+            self._send_cmd(f"GET {self._barcode_tag}")
             result = self._read_response()
             result = result.replace("!OK\x03", "").strip()
             if result.startswith("!ERROR"):
@@ -129,8 +159,10 @@ class CameraConnection:
             self.close()
             try:
                 self.connect()
-                # Retry once after reconnect
                 self._send_cmd("TRIGGER")
+                self._read_response()
+                time.sleep(0.2)
+                self._send_cmd(f"GET {self._barcode_tag}")
                 result = self._read_response()
                 result = result.replace("!OK\x03", "").strip()
                 if result.startswith("!ERROR"):
@@ -140,6 +172,79 @@ class CameraConnection:
                 return result, None
             except (OSError, socket.error) as exc2:
                 return None, f"Camera reconnect failed: {exc2}"
+
+    def load_job(self, avp_path: str | Path) -> bool:
+        """
+        Load an AVP/AVZ job file onto the camera before running.
+        Uses JOBDOWNLOAD (FTP) + JOBLOAD per MV-40 Guide Appendix D.
+        Returns True on success, False on failure.
+        """
+        path = Path(avp_path)
+        if not path.exists():
+            log.error("Job file not found: %s", path)
+            return False
+        if FTP is None:
+            log.error("FTP support required for job loading (stdlib ftplib)")
+            return False
+
+        size = path.stat().st_size
+
+        self.connect(skip_online=True)
+        try:
+            self._send_cmd("OFFLINE")
+            r = self._read_response(5.0)
+            if "!ERROR" in r:
+                log.warning("OFFLINE response: %s", r)
+
+            log.info("Preparing RAM disk for job (%d bytes)...", size)
+            self._send_cmd(f"JOBDOWNLOAD -transfer=ftp -size={size}")
+            r = self._read_response(5.0)
+            if "!ERROR" in r:
+                log.error("JOBDOWNLOAD failed: %s", r)
+                return False
+            log.info("JOBDOWNLOAD OK, uploading via FTP...")
+
+            ftp = FTP(timeout=30)
+            ftp.connect(self._ip, 21)
+            try:
+                ftp.login("target", "password")
+            except Exception:
+                try:
+                    ftp.login("anonymous", "")
+                except Exception:
+                    ftp.login()
+            # JOBDOWNLOAD creates /streamd0 RAM disk. Try: (1) cwd into streamd0
+            # and store file; (2) else delete pre-created streamd0 and overwrite.
+            def do_stor(cmd: str) -> None:
+                with path.open("rb") as f:
+                    ftp.storbinary(cmd, f)
+
+            try:
+                ftp.cwd("streamd0")
+                do_stor(f"STOR {path.name}")
+            except Exception:
+                try:
+                    ftp.delete("streamd0")
+                except Exception:
+                    pass
+                do_stor("STOR streamd0")
+            ftp.quit()
+
+            log.info("Loading job and starting inspections...")
+            self._send_cmd("JOBLOAD -mem -r")
+            r = self._read_response(10.0)
+            if "!ERROR" in r:
+                log.error("JOBLOAD failed: %s", r)
+                return False
+            log.info("Job loaded and running.")
+            return True
+        except Exception as exc:
+            log.error("Job load failed: %s", exc)
+            return False
+
+    def listen_and_log(self, db: "DatabaseWriter") -> None:
+        """Listen for raw data, parse into lines, log and insert into DB. Ctrl+C to stop."""
+        run_listen_loop(self, db)
 
     def __enter__(self):
         self.connect()
@@ -342,6 +447,45 @@ def run_loop(
     log.info("Stopped. Total scans inserted: %d", db.total_inserted)
 
 
+def run_listen_loop(camera: CameraConnection, db: DatabaseWriter) -> None:
+    """
+    Listen-only loop: no TRIGGER from code. Keeps connection alive, receives/logs
+    incoming data, and inserts each chunk into the database.
+    """
+    log.info("Starting MV40 listen loop (no trigger). Ctrl+C to stop.")
+    shutdown = ShutdownHandler()
+    camera._ensure_connected()
+
+    buf = b""
+    camera._sock.settimeout(2.0)
+
+    while not shutdown.should_stop:
+        try:
+            chunk = camera._sock.recv(4096)
+            line = chunk.decode(errors="replace").replace("!OK\x03", "").replace("!OK\x03", "").strip()            
+            if line:
+                log.info("RECEIVED: %s", line)
+                db.add_scan(line)
+                db.maybe_flush()
+                
+        except socket.timeout:
+            continue
+        except OSError as exc:
+            log.warning("Connection error: %s, reconnecting...", exc)
+            camera.close()
+            try:
+                camera.connect()
+            except OSError as exc2:
+                log.error("Reconnect failed: %s", exc2)
+                break
+            buf = b""
+            continue
+
+    log.info("Flushing remaining scans...")
+    db.flush()
+    log.info("Stopped. Total scans inserted: %d", db.total_inserted)
+
+
 def run_once(
     camera: CameraConnection,
     db: DatabaseWriter,
@@ -356,53 +500,6 @@ def run_once(
     db.add_scan(value)
     db.flush()
     log.info("Done.")
-
-
-def run_listen(
-    camera_ip: str,
-    camera_port: int,
-    db: DatabaseWriter,
-    verbose: bool,
-) -> None:
-    """Listen for camera-pushed data (like PuTTY). Use REPORT port if camera pushes."""
-    log.info("Starting listen mode on %s:%d", camera_ip, camera_port)
-    shutdown = ShutdownHandler()
-
-    with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
-        s.settimeout(30.0)
-        s.connect((camera_ip, camera_port))
-        s.settimeout(1.0)  # short timeout to check shutdown flag
-        log.info("Listening. Each line = one scan. Ctrl+C to stop.")
-        buf = b""
-        while not shutdown.should_stop:
-            try:
-                chunk = s.recv(4096)
-                if not chunk:
-                    log.warning("Camera disconnected.")
-                    break
-                buf += chunk
-            except socket.timeout:
-                db.maybe_flush()
-                continue
-            except OSError as exc:
-                log.error("Socket error: %s", exc)
-                break
-
-            while b"\n" in buf or b"\r" in buf:
-                sep = b"\n" if b"\n" in buf else b"\r"
-                line_bytes, _, buf = buf.partition(sep)
-                line = line_bytes.replace(b"\r", b"").decode(errors="replace").strip()
-                line = line.replace("!OK\x03", "").strip()
-                if not line or line.startswith("!"):
-                    continue
-                log.info("Scanned: %s", line)
-                db.add_scan(line)
-
-            db.maybe_flush()
-
-    log.info("Flushing remaining scans...")
-    db.flush()
-    log.info("Stopped. Total scans inserted: %d", db.total_inserted)
 
 
 # ---------------------------------------------------------------------------
@@ -436,7 +533,13 @@ def main() -> None:
     parser.add_argument("--once", action="store_true", help="Single scan then exit")
     parser.add_argument(
         "--listen", action="store_true",
-        help="Listen for pushed data (use REPORT port 49200)",
+        help="Listen for incoming data and insert into DB (no trigger)",
+    )
+    parser.add_argument(
+        "--load-job",
+        default=os.environ.get("MV40_LOAD_JOB", ""),
+        metavar="FILE",
+        help="Load AVP/AVZ job file before running (e.g. 1.avp, or MV40_LOAD_JOB env)",
     )
     parser.add_argument("-v", "--verbose", action="store_true", help="Debug logging")
     args = parser.parse_args()
@@ -460,16 +563,22 @@ def main() -> None:
         flush_interval=args.batch_flush_sec,
     )
 
-    if args.listen:
+    camera = CameraConnection(args.ip, args.port, args.tag)
+    try:
+        if args.load_job:
+            if not camera.load_job(args.load_job):
+                raise SystemExit(1)
+        else:
+            camera.connect()
         with db:
-            run_listen(args.ip, args.port, db, args.verbose)
-    else:
-        camera = CameraConnection(args.ip, args.port)
-        with camera, db:
-            if args.once:
+            if args.listen:
+                run_listen_loop(camera, db)
+            elif args.once:
                 run_once(camera, db)
             else:
                 run_loop(camera, db, args.interval, args.verbose)
+    finally:
+        camera.close()
 
 
 if __name__ == "__main__":
