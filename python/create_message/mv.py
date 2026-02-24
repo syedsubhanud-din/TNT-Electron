@@ -126,7 +126,7 @@ class CameraConnection:
         except socket.timeout:
             pass
         return b"".join(chunks).decode(errors="replace").strip()
-    
+
     def recv_raw(self, size: int = 4096, timeout: float = 1.0) -> bytes:
         """Read raw bytes from socket. Returns empty bytes on timeout/disconnect."""
         self._ensure_connected()
@@ -462,12 +462,12 @@ def run_listen_loop(camera: CameraConnection, db: DatabaseWriter) -> None:
     while not shutdown.should_stop:
         try:
             chunk = camera._sock.recv(4096)
-            line = chunk.decode(errors="replace").replace("!OK\x03", "").replace("!OK\x03", "").strip()            
+            line = chunk.decode(errors="replace").replace("!OK\x03", "").replace("!OK\x03", "").strip()
             if line:
                 log.info("RECEIVED: %s", line)
                 db.add_scan(line)
                 db.maybe_flush()
-                
+
         except socket.timeout:
             continue
         except OSError as exc:
@@ -484,6 +484,25 @@ def run_listen_loop(camera: CameraConnection, db: DatabaseWriter) -> None:
     log.info("Flushing remaining scans...")
     db.flush()
     log.info("Stopped. Total scans inserted: %d", db.total_inserted)
+
+
+def list_scans(db: DatabaseWriter) -> None:
+    """Fetch all scans from the database and print as JSON."""
+    import json
+    # Disable logging to ensure only JSON is printed to stdout
+    logging.getLogger("mv40").setLevel(logging.ERROR)
+    try:
+        db._ensure_connected()
+        with db._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute("SELECT id, barcode_value, scanned_at FROM scans ORDER BY scanned_at DESC")
+            rows = cur.fetchall()
+            # Convert datetime to string for JSON serialization
+            for row in rows:
+                if row['scanned_at']:
+                    row['scanned_at'] = row['scanned_at'].isoformat()
+            print(json.dumps(rows))
+    except Exception as exc:
+        print(json.dumps({"error": str(exc)}))
 
 
 def run_once(
@@ -541,6 +560,10 @@ def main() -> None:
         metavar="FILE",
         help="Load AVP/AVZ job file before running (e.g. 1.avp, or MV40_LOAD_JOB env)",
     )
+    parser.add_argument(
+        "--list-scans", action="store_true",
+        help="Query the scans table and print as JSON",
+    )
     parser.add_argument("-v", "--verbose", action="store_true", help="Debug logging")
     args = parser.parse_args()
 
@@ -571,7 +594,9 @@ def main() -> None:
         else:
             camera.connect()
         with db:
-            if args.listen:
+            if args.list_scans:
+                list_scans(db)
+            elif args.listen:
                 run_listen_loop(camera, db)
             elif args.once:
                 run_once(camera, db)

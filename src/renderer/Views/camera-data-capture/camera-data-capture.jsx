@@ -13,6 +13,8 @@ export default function CameraDataCapture() {
   const [listenPid, setListenPid] = useState(null);
   const [captureError, setCaptureError] = useState(null);
   const [logs, setLogs] = useState([]);
+  const [historyData, setHistoryData] = useState([]);
+  const [loadingHistory, setLoadingHistory] = useState(false);
 
   const addLog = (type, message) => {
     const now = new Date();
@@ -259,6 +261,47 @@ export default function CameraDataCapture() {
     console.log('Manual override triggered...');
   };
 
+  const fetchHistory = async () => {
+    setLoadingHistory(true);
+    try {
+      // We use runPython without background option to get the stdout result (JSON)
+      const result = await window.electron.runPython('create_message/mv.py', [
+        '--list-scans',
+      ]);
+
+      // The result should be a JSON string of all scans
+      try {
+        const parsed = JSON.parse(result);
+        if (Array.isArray(parsed)) {
+          console.log('scan History Data', parsed);
+
+          setHistoryData(parsed);
+          addLog('info', `Loaded ${parsed.length} historical scans`);
+        } else if (parsed.error) {
+          addLog('error', `History error: ${parsed.error}`);
+        }
+      } catch (parseErr) {
+        console.error(
+          'Failed to parse history JSON:',
+          parseErr,
+          'Result was:',
+          result,
+        );
+        addLog('error', 'Failed to parse historical data');
+      }
+    } catch (error) {
+      console.error('Failed to fetch history:', error);
+      addLog('error', `Failed to load history: ${error.message}`);
+    } finally {
+      setLoadingHistory(false);
+    }
+  };
+
+  useEffect(() => {
+    // Optionally load history on mount
+    fetchHistory();
+  }, []);
+
   return (
     <div className="camera-capture-wrapper">
       <div className="page-header">
@@ -333,7 +376,6 @@ export default function CameraDataCapture() {
             )}
           </div>
 
-          {/* Control Buttons */}
           <div className="camera-controls">
             {captureState === 'idle' && (
               <button className="btn-start" onClick={handleStartCapture}>
@@ -467,7 +509,6 @@ export default function CameraDataCapture() {
         {/* Right Panel: Detection Data */}
         <div className="detection-panel">
           <h3>Detection Data</h3>
-
           <div className="detection-info">
             <div className="info-section">
               <label>Detection Status</label>
@@ -533,7 +574,6 @@ export default function CameraDataCapture() {
       {/* Detection Logs Section */}
       <div className="detection-logs-section">
         <h3>Detection Logs</h3>
-
         <div className="logs-container">
           {logs.map((log, index) => (
             <div key={index} className={`log-entry ${log.type}`}>
@@ -547,6 +587,63 @@ export default function CameraDataCapture() {
               <div className="log-message">{log.message}</div>
             </div>
           ))}
+        </div>
+      </div>
+
+      {/* Scan History Section */}
+      <div className="history-section">
+        <div className="section-header">
+          <h3>Scan History</h3>
+          <button
+            className="btn-refresh"
+            onClick={fetchHistory}
+            disabled={loadingHistory}
+          >
+            <svg
+              width="16"
+              height="16"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+            >
+              <path d="M23 4v6h-6"></path>
+              <path d="M1 20v-6h6"></path>
+              <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
+            </svg>
+            {loadingHistory ? 'Loading...' : 'Refresh History'}
+          </button>
+        </div>
+
+        <div className="history-table-container">
+          <table className="history-table">
+            <thead>
+              <tr>
+                <th>ID</th>
+                <th>Barcode Value</th>
+                <th>Scanned At</th>
+              </tr>
+            </thead>
+            <tbody>
+              {historyData.length > 0 ? (
+                historyData.map((scan) => (
+                  <tr key={scan.id}>
+                    <td>{scan.id}</td>
+                    <td className="barcode-cell">{scan.barcode_value}</td>
+                    <td className="time-cell">
+                      {new Date(scan.scanned_at).toLocaleString()}
+                    </td>
+                  </tr>
+                ))
+              ) : (
+                <tr>
+                  <td colSpan="3" className="no-data">
+                    No scans found in database
+                  </td>
+                </tr>
+              )}
+            </tbody>
+          </table>
         </div>
       </div>
     </div>

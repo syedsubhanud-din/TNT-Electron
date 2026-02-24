@@ -379,6 +379,8 @@
 }
 
 .logs-container {
+  max-height: 500px;
+  overflow-y: auto;
   display: flex;
   flex-direction: column;
   gap: 15px;
@@ -501,4 +503,101 @@
   .detection-panel {
     min-width: 100%;
   }
+}
+
+/* Scan History Section */
+.history-section {
+  background: #fff;
+  border-radius: 8px;
+  padding: 25px;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.03);
+  border: 1px solid #f0f0f0;
+  margin-top: 25px;
+}
+
+.history-section .section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20px;
+}
+
+.history-section h3 {
+  font-size: 1.2rem;
+  font-weight: 600;
+  margin: 0;
+  color: #222;
+}
+
+.btn-refresh {
+  background-color: #007bff;
+  color: white;
+  border: none;
+  padding: 8px 16px;
+  border-radius: 6px;
+  font-size: 0.9rem;
+  font-weight: 500;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: background-color 0.2s;
+}
+
+.btn-refresh:hover:not(:disabled) {
+  background-color: #0056b3;
+}
+
+.btn-refresh:disabled {
+  background-color: #ccc;
+  cursor: not-allowed;
+}
+
+.history-table-container {
+  max-height: 400px;
+  overflow-y: auto;
+  border: 1px solid #eee;
+  border-radius: 6px;
+}
+
+.history-table {
+  width: 100%;
+  border-collapse: collapse;
+  text-align: left;
+}
+
+.history-table th {
+  background: #f8f9fa;
+  padding: 12px 15px;
+  font-weight: 600;
+  color: #555;
+  border-bottom: 2px solid #eee;
+  position: sticky;
+  top: 0;
+}
+
+.history-table td {
+  padding: 12px 15px;
+  border-bottom: 1px solid #eee;
+  font-size: 0.9rem;
+}
+
+.history-table .barcode-cell {
+  font-family: 'Courier New', monospace;
+  font-weight: 600;
+  color: #007bff;
+}
+
+.history-table .time-cell {
+  color: #666;
+}
+
+.history-table tr:hover {
+  background-color: #f9f9f9;
+}
+
+.no-data {
+  text-align: center;
+  color: #888;
+  padding: 30px !important;
 }
