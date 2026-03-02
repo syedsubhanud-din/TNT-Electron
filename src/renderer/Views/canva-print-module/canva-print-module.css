@@ -1,0 +1,741 @@
+/* ══════════════════════════════════════════════════════════════
+   CANVAS PRINT MODULE  —  Full CSS
+   Theme: #0d1b42 (navy) · #00bcd4 (cyan) · #f0f0f0 (bg)
+   ══════════════════════════════════════════════════════════════ */
+
+/* ── Root ─────────────────────────────────────────────────── */
+.cpm-root {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    background: #eef0f4;
+    font-family: 'Segoe UI', system-ui, sans-serif;
+    font-size: 13px;
+    color: #1a1a2e;
+    overflow: hidden;
+    user-select: none;
+}
+
+/* ── Toolbar ──────────────────────────────────────────────── */
+.cpm-toolbar {
+    display: flex;
+    align-items: center;
+    gap: 2px;
+    background: linear-gradient(180deg, #f7f8fb 0%, #f0f2f5 100%);
+    border-bottom: 1px solid #d4d8e2;
+    height: 42px;
+    padding: 0 10px;
+    flex-shrink: 0;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.06);
+}
+
+.cpm-tool-group {
+    display: flex;
+    align-items: center;
+    gap: 1px;
+}
+
+.cpm-toolbar-sep {
+    width: 1px;
+    height: 24px;
+    background: #d0d4df;
+    margin: 0 6px;
+    flex-shrink: 0;
+}
+
+.cpm-tool-btn {
+    width: 32px;
+    height: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: transparent;
+    border: 1px solid transparent;
+    border-radius: 5px;
+    color: #4a5568;
+    cursor: pointer;
+    transition: background 0.14s ease, border-color 0.14s ease,
+                color 0.14s ease, transform 0.1s ease, box-shadow 0.14s ease;
+    padding: 0;
+    position: relative;
+}
+
+.cpm-tool-btn:hover:not(.disabled) {
+    background: #e8edf5;
+    border-color: #c5cbe0;
+    color: #0d1b42;
+    transform: translateY(-1px);
+    box-shadow: 0 2px 6px rgba(13,27,66,0.10);
+}
+
+.cpm-tool-btn:active:not(.disabled) {
+    transform: translateY(0);
+    box-shadow: none;
+    background: #dde3f0;
+}
+
+.cpm-tool-btn.active {
+    background: #e0f7fa;
+    border-color: #00bcd4;
+    color: #006064;
+    box-shadow: inset 0 1px 3px rgba(0,188,212,0.15);
+    animation: toolPulse 1.8s ease infinite;
+}
+
+@keyframes toolPulse {
+    0%, 100% { box-shadow: inset 0 1px 3px rgba(0,188,212,0.15), 0 0 0 0 rgba(0,188,212,0.3); }
+    50%       { box-shadow: inset 0 1px 3px rgba(0,188,212,0.15), 0 0 0 4px rgba(0,188,212,0.12); }
+}
+
+.cpm-tool-btn.disabled {
+    opacity: 0.3;
+    cursor: not-allowed;
+    pointer-events: none;
+}
+
+/* Drawing mode badge */
+.cpm-draw-badge {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    margin-left: 10px;
+    padding: 4px 12px;
+    background: rgba(245,158,11,0.12);
+    border: 1px solid rgba(245,158,11,0.5);
+    border-radius: 20px;
+    font-size: 11.5px;
+    font-weight: 600;
+    color: #92400e;
+    animation: badgeIn 0.2s cubic-bezier(0.34,1.56,0.64,1);
+    white-space: nowrap;
+}
+
+@keyframes badgeIn {
+    from { opacity: 0; transform: scale(0.85); }
+    to   { opacity: 1; transform: scale(1);    }
+}
+
+.cpm-draw-dot {
+    width: 7px; height: 7px;
+    border-radius: 50%;
+    background: #f59e0b;
+    animation: dotBlink 1s ease infinite;
+    flex-shrink: 0;
+}
+
+@keyframes dotBlink {
+    0%, 100% { opacity: 1; }
+    50%       { opacity: 0.3; }
+}
+
+.cpm-badge-dismiss {
+    background: none; border: none;
+    cursor: pointer; color: #92400e;
+    font-size: 12px; padding: 0 2px; line-height: 1;
+    opacity: 0.65; transition: opacity 0.14s;
+    margin-left: 2px;
+}
+.cpm-badge-dismiss:hover { opacity: 1; }
+
+/* ── Toolbar section labels ─────────────────────────────────── */
+.cpm-toolbar-labels {
+    display: flex;
+    align-items: center;
+    background: #eaecf2;
+    border-bottom: 1px solid #d4d8e2;
+    height: 15px;
+    padding: 0 10px;
+    flex-shrink: 0;
+    font-size: 10px;
+    color: #8890a8;
+    letter-spacing: 0.02em;
+}
+
+.cpm-tl-sep {
+    width: 1px; height: 10px;
+    background: #c8ccda;
+    margin: 0 6px;
+    flex-shrink: 0;
+}
+
+/* ── Body: canvas + props panel ─────────────────────────────── */
+.cpm-body {
+    flex: 1;
+    display: flex;
+    overflow: hidden;
+    min-height: 0;
+}
+
+/* ── Canvas area ────────────────────────────────────────────── */
+.cpm-canvas-area {
+    flex: 1;
+    overflow: auto;
+    background: #b8bcc8;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 0;
+    min-width: 0;
+
+    /* subtle dot pattern */
+    background-image: radial-gradient(circle, #adb2bf 1px, transparent 1px);
+    background-size: 20px 20px;
+    background-color: #c4c8d4;
+}
+
+.cpm-corner {
+    width: 20px; height: 20px;
+    background: #d0d4de;
+    border-right: 1px solid #bbbfcc;
+    border-bottom: 1px solid #bbbfcc;
+    flex-shrink: 0;
+}
+
+.cpm-ruler-h {
+    background: #d8dbe6;
+    border-bottom: 1px solid #bbbfcc;
+    display: block;
+}
+
+.cpm-ruler-v {
+    background: #d8dbe6;
+    border-right: 1px solid #bbbfcc;
+    flex-shrink: 0;
+    display: block;
+}
+
+.cpm-canvas-row {
+    display: flex;
+    align-items: flex-start;
+}
+
+/* The white label canvas */
+.cpm-canvas {
+    position: relative;
+    background: #ffffff;
+    box-shadow: 4px 4px 20px rgba(0,0,0,0.35),
+                0 0 0 1px rgba(0,0,0,0.08);
+    overflow: visible;
+    flex-shrink: 0;
+}
+
+/* Empty canvas hint */
+.cpm-empty-hint {
+    position: absolute; inset: 0;
+    display: flex; flex-direction: column;
+    align-items: center; justify-content: center;
+    gap: 12px;
+    pointer-events: none;
+    animation: hintFade 0.5s ease;
+}
+
+@keyframes hintFade {
+    from { opacity: 0; transform: translateY(6px); }
+    to   { opacity: 1; transform: translateY(0);    }
+}
+
+.cpm-empty-hint p {
+    font-size: 13px; color: #b0b8cc;
+    text-align: center; line-height: 1.6;
+    font-weight: 400; margin: 0;
+}
+
+/* ── Canvas elements ────────────────────────────────────────── */
+.cpm-el {
+    position: absolute;
+    box-sizing: border-box;
+    border: 1px dashed transparent;
+    transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.cpm-el:hover {
+    border-color: rgba(0,188,212,0.4);
+}
+
+.cpm-el.selected {
+    border-color: #00bcd4;
+    box-shadow: 0 0 0 2px rgba(0,188,212,0.18);
+}
+
+/* Entry animation when element is first placed */
+.cpm-el.entering {
+    animation: elEnter 0.28s cubic-bezier(0.34,1.56,0.64,1) forwards;
+}
+
+@keyframes elEnter {
+    from { opacity: 0; transform: scale(0.88); }
+    to   { opacity: 1; transform: scale(1);    }
+}
+
+/* Corner handles */
+.cpm-handle {
+    position: absolute;
+    width: 9px; height: 9px;
+    background: #0d1b42;
+    border: 2px solid #fff;
+    border-radius: 50%;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.3);
+    pointer-events: none;
+    z-index: 10;
+    animation: handlePop 0.2s cubic-bezier(0.34,1.56,0.64,1);
+}
+
+@keyframes handlePop {
+    from { transform: scale(0); }
+    to   { transform: scale(1); }
+}
+
+/* ── Properties Panel ───────────────────────────────────────── */
+.cpm-props {
+    width: 220px;
+    min-width: 220px;
+    background: #fff;
+    border-left: 1px solid #dde2ee;
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+    flex-shrink: 0;
+    animation: propsPanelIn 0.22s cubic-bezier(0.34,1.2,0.64,1);
+}
+
+@keyframes propsPanelIn {
+    from { opacity: 0; transform: translateX(20px); }
+    to   { opacity: 1; transform: translateX(0);    }
+}
+
+.cpm-props-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 10px 12px;
+    background: #0d1b42;
+    border-bottom: 2px solid #00bcd4;
+    flex-shrink: 0;
+}
+
+.cpm-props-type {
+    font-size: 11px;
+    font-weight: 700;
+    color: #00bcd4;
+    letter-spacing: 0.08em;
+}
+
+.cpm-props-actions {
+    display: flex;
+    gap: 4px;
+}
+
+.cpm-props-btn {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.12);
+    border-radius: 5px;
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s;
+    padding: 0;
+}
+.cpm-props-btn:hover          { background: rgba(255,255,255,0.2); color: #fff; }
+.cpm-props-btn.danger:hover   { background: #dc2626; border-color: #dc2626; color: #fff; }
+
+.cpm-props-section {
+    padding: 10px 12px;
+    border-bottom: 1px solid #eef0f5;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.cpm-props-row2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+}
+
+.cpm-field-row {
+    display: flex;
+    flex-direction: column;
+    gap: 3px;
+}
+
+.cpm-field-row label {
+    font-size: 10px;
+    font-weight: 600;
+    color: #7a83a0;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+}
+
+.cpm-input {
+    width: 100%;
+    padding: 5px 8px;
+    border: 1px solid #dde0ea;
+    border-radius: 5px;
+    font-size: 12px;
+    color: #1a1a2e;
+    background: #f8f9fc;
+    outline: none;
+    transition: border 0.15s, box-shadow 0.15s;
+    box-sizing: border-box;
+    font-family: inherit;
+}
+
+.cpm-input.sm { padding: 4px 7px; font-size: 12px; }
+
+.cpm-input:focus {
+    border-color: #00bcd4;
+    box-shadow: 0 0 0 2px rgba(0,188,212,0.15);
+    background: #fff;
+}
+
+.cpm-textarea {
+    width: 100%;
+    padding: 5px 8px;
+    border: 1px solid #dde0ea;
+    border-radius: 5px;
+    font-size: 12px;
+    color: #1a1a2e;
+    background: #f8f9fc;
+    outline: none;
+    resize: vertical;
+    font-family: 'Courier New', monospace;
+    transition: border 0.15s;
+    box-sizing: border-box;
+}
+.cpm-textarea:focus { border-color: #00bcd4; background: #fff; }
+
+.cpm-color {
+    width: 100%;
+    height: 30px;
+    padding: 2px;
+    border: 1px solid #dde0ea;
+    border-radius: 5px;
+    cursor: pointer;
+    background: none;
+    transition: border 0.15s;
+}
+.cpm-color:hover { border-color: #00bcd4; }
+
+.cpm-checkbox-row {
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-size: 12px;
+    color: #4a5568;
+    cursor: pointer;
+    font-weight: 500;
+}
+.cpm-checkbox-row input { cursor: pointer; accent-color: #0d1b42; }
+
+/* ── Status bar ─────────────────────────────────────────────── */
+.cpm-statusbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(180deg, #f0f2f5 0%, #eaecf0 100%);
+    border-top: 1px solid #d4d8e2;
+    height: 30px;
+    padding: 0 14px;
+    flex-shrink: 0;
+    font-size: 11.5px;
+    box-shadow: 0 -1px 3px rgba(0,0,0,0.04);
+}
+
+.cpm-status-fields {
+    display: flex;
+    align-items: center;
+    gap: 18px;
+}
+
+.cpm-sf {
+    display: flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.cpm-sf-label {
+    font-size: 10.5px;
+    color: #8890a8;
+    font-weight: 500;
+}
+
+.cpm-sf-val {
+    background: #fff;
+    border: 1px solid #d8dce8;
+    border-radius: 3px;
+    padding: 1px 7px;
+    min-width: 40px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    color: #1a1a2e;
+    transition: all 0.2s ease;
+}
+
+.cpm-sf-val.hi {
+    background: #e53935;
+    color: #fff;
+    border-color: #c62828;
+    transform: scale(1.05);
+}
+
+.cpm-el-count {
+    font-size: 10.5px;
+    color: #8890a8;
+    background: #eef0f5;
+    border: 1px solid #d8dce8;
+    border-radius: 10px;
+    padding: 1px 8px;
+}
+
+.cpm-zoom-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+}
+
+.cpm-zoom-btn {
+    width: 22px; height: 22px;
+    display: flex; align-items: center; justify-content: center;
+    background: #fff;
+    border: 1px solid #d0d4df;
+    border-radius: 4px;
+    color: #4a5568;
+    cursor: pointer;
+    transition: all 0.14s;
+    padding: 0;
+}
+.cpm-zoom-btn:hover { background: #0d1b42; border-color: #0d1b42; color: #fff; transform: scale(1.1); }
+
+.cpm-zoom-val {
+    font-size: 11.5px;
+    font-weight: 700;
+    color: #1a1a2e;
+    min-width: 40px;
+    text-align: center;
+}
+
+/* ── Modal ──────────────────────────────────────────────────── */
+.cpm-overlay {
+    position: fixed; inset: 0;
+    background: rgba(13,27,66,0.45);
+    display: flex; align-items: center; justify-content: center;
+    z-index: 1000;
+    animation: overlayIn 0.18s ease;
+    backdrop-filter: blur(2px);
+}
+
+@keyframes overlayIn {
+    from { opacity: 0; }
+    to   { opacity: 1; }
+}
+
+.cpm-modal {
+    background: #fff;
+    border-radius: 12px;
+    width: 400px;
+    box-shadow: 0 20px 50px rgba(0,0,0,0.3), 0 0 0 1px rgba(255,255,255,0.05);
+    overflow: hidden;
+    animation: modalIn 0.22s cubic-bezier(0.34,1.4,0.64,1);
+}
+
+@keyframes modalIn {
+    from { opacity: 0; transform: scale(0.92) translateY(10px); }
+    to   { opacity: 1; transform: scale(1)    translateY(0);     }
+}
+
+.cpm-modal-top {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 18px;
+    background: #0d1b42;
+    color: #fff;
+    font-weight: 600;
+    font-size: 13.5px;
+}
+
+.cpm-modal-x {
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid rgba(255,255,255,0.15);
+    border-radius: 5px;
+    color: rgba(255,255,255,0.8);
+    cursor: pointer;
+    transition: background 0.14s;
+    padding: 0;
+}
+.cpm-modal-x:hover { background: rgba(255,255,255,0.22); color: #fff; }
+
+.cpm-modal-body {
+    padding: 18px 18px 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.cpm-modal-text {
+    margin: 0 0 4px;
+    font-size: 13.5px;
+    color: #4a5568;
+    line-height: 1.6;
+}
+
+.cpm-modal-actions {
+    display: flex;
+    justify-content: flex-end;
+    gap: 8px;
+    padding: 12px 18px 16px;
+}
+
+/* Buttons */
+.cpm-btn {
+    padding: 8px 18px;
+    border-radius: 7px;
+    font-size: 13px;
+    font-weight: 600;
+    cursor: pointer;
+    border: none;
+    transition: all 0.15s ease;
+}
+.cpm-btn:active { transform: scale(0.97); }
+
+.cpm-btn-ghost {
+    background: #f0f2f7;
+    color: #4a5568;
+    border: 1px solid #d8dce8;
+}
+.cpm-btn-ghost:hover { background: #e4e8f2; }
+
+.cpm-btn-primary {
+    background: #0d1b42;
+    color: #fff;
+}
+.cpm-btn-primary:hover { background: #00bcd4; }
+
+.cpm-btn-danger {
+    background: #dc2626;
+    color: #fff;
+}
+.cpm-btn.sm { padding: 4px 10px; font-size: 11px; }
+
+/* ── QR Setup Modal ── */
+.cpm-modal-description {
+    font-size: 12px;
+    color: #64748b;
+    margin-bottom: 12px;
+}
+
+.cpm-qr-setup {
+    display: flex;
+    flex-direction: column;
+    gap: 15px;
+}
+
+.cpm-qr-list {
+    display: flex;
+    flex-direction: column;
+    border: 1px solid #e2e8f0;
+    border-radius: 8px;
+    max-height: 200px;
+    overflow-y: auto;
+    background: #f8fafc;
+}
+
+.cpm-list-header {
+    padding: 8px 12px;
+    background: #f1f5f9;
+    font-size: 11px;
+    font-weight: 700;
+    color: #475569;
+    border-bottom: 1px solid #e2e8f0;
+}
+
+.cpm-qr-item {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 8px 12px;
+    cursor: pointer;
+    border-bottom: 1px solid #f1f5f9;
+    transition: background 0.15s;
+}
+
+.cpm-qr-item:hover { background: #f1f5f9; }
+.cpm-qr-item input { cursor: pointer; accent-color: #0d1b42; }
+
+.cpm-item-id {
+    font-size: 11px;
+    font-weight: 700;
+    color: #00bcd4;
+    font-family: monospace;
+    min-width: 45px;
+}
+
+.cpm-item-text {
+    font-size: 12px;
+    color: #1e293b;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.cpm-empty-list {
+    padding: 20px;
+    text-align: center;
+    font-size: 12px;
+    color: #94a3b8;
+}
+
+.cpm-qr-preview {
+    margin-top: 5px;
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+}
+
+.cpm-qr-preview label {
+    font-size: 11px;
+    font-weight: 700;
+    color: #334155;
+    text-transform: uppercase;
+}
+
+.cpm-preview-box {
+    padding: 10px;
+    background: #f1f5f9;
+    border: 1px dashed #cbd5e1;
+    border-radius: 6px;
+    font-family: monospace;
+    font-size: 12px;
+    color: #0d1b42;
+    word-break: break-all;
+    min-height: 20px;
+}
+
+/* ── Tags in Props Panel ── */
+.cpm-tag-list {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-bottom: 8px;
+}
+
+.cpm-tag {
+    background: #e0f7fa;
+    color: #00838f;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 700;
+    font-family: monospace;
+    border: 1px solid #b2ebf2;
+}
+
+.cpm-tag-empty {
+    font-size: 11px;
+    color: #94a3b8;
+    font-style: italic;
+}

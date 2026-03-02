@@ -1,0 +1,1369 @@
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { QRCodeCanvas } from 'qrcode.react';
+import './canva-print-module.css';
+
+// ─────────────────────────────────────────────────────────────────────────────
+const CM_TO_PX = 37.7953;
+let _id = 0;
+const genId = () => `el_${++_id}`;
+
+// SVG Icon Wrapper
+const S = ({ children, ...p }) => (
+  <svg
+    width="17"
+    height="17"
+    viewBox="0 0 24 24"
+    fill="none"
+    stroke="currentColor"
+    strokeWidth="2"
+    strokeLinecap="round"
+    strokeLinejoin="round"
+    {...p}
+  >
+    {children}
+  </svg>
+);
+
+// Icons
+const IcoNew = () => (
+  <S>
+    <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+    <polyline points="14 2 14 8 20 8" />
+    <line x1="12" y1="18" x2="12" y2="12" />
+    <line x1="9" y1="15" x2="15" y2="15" />
+  </S>
+);
+const IcoOpen = () => (
+  <S>
+    <path d="M22 19a2 2 0 0 1-2 2H4a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h5l2 3h9a2 2 0 0 1 2 2z" />
+  </S>
+);
+const IcoSave = () => (
+  <S>
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <polyline points="17 21 17 13 7 13 7 21" />
+    <polyline points="7 3 7 8 15 8" />
+  </S>
+);
+const IcoSaveAs = () => (
+  <S>
+    <path d="M19 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h11l5 5v11a2 2 0 0 1-2 2z" />
+    <polyline points="17 21 17 13 7 13 7 21" />
+    <line x1="20" y1="10" x2="24" y2="10" />
+    <line x1="22" y1="8" x2="22" y2="12" />
+  </S>
+);
+const IcoDelete = ({ size = 17 }) => (
+  <S width={size} height={size}>
+    <polyline points="3 6 5 6 21 6" />
+    <path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" />
+    <path d="M9 6V4h6v2" />
+  </S>
+);
+const IcoCut = () => (
+  <S>
+    <circle cx="6" cy="20" r="2" />
+    <circle cx="6" cy="4" r="2" />
+    <line x1="6" y1="6" x2="6" y2="18" />
+    <path d="M20 4L8.12 15.88" />
+    <path d="M14.47 14.48L20 20" />
+    <path d="M8.12 8.12L12 12" />
+  </S>
+);
+const IcoCopy = ({ size = 17 }) => (
+  <S width={size} height={size}>
+    <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+    <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+  </S>
+);
+const IcoPaste = () => (
+  <S>
+    <path d="M16 4h2a2 2 0 0 1 2 2v14a2 2 0 0 1-2 2H6a2 2 0 0 1-2-2V6a2 2 0 0 1 2-2h2" />
+    <rect x="8" y="2" width="8" height="4" rx="1" />
+  </S>
+);
+const IcoRect = () => (
+  <S>
+    <rect x="3" y="5" width="18" height="14" rx="1" />
+  </S>
+);
+const IcoEllipse = () => (
+  <S>
+    <ellipse cx="12" cy="12" rx="10" ry="6" />
+  </S>
+);
+const IcoShape = () => (
+  <S>
+    <polygon points="12 2 22 19 2 19" />
+  </S>
+);
+const IcoText = () => (
+  <S>
+    <polyline points="4 7 4 4 20 4 20 7" />
+    <line x1="9" y1="20" x2="15" y2="20" />
+    <line x1="12" y1="4" x2="12" y2="20" />
+  </S>
+);
+const IcoLine = () => (
+  <S strokeWidth="2.5">
+    <line x1="3" y1="21" x2="21" y2="3" />
+  </S>
+);
+const IcoBarcode = () => (
+  <S>
+    <rect x="3" y="3" width="6" height="6" rx="1" />
+    <rect x="15" y="3" width="6" height="6" rx="1" />
+    <rect x="3" y="15" width="6" height="6" rx="1" />
+    <path d="M15 15h2v2h-2zM19 19h2v2h-2zM15 19h2v2h-2zM19 15h2v2h-2z" />
+  </S>
+);
+const IcoClock = () => (
+  <S>
+    <circle cx="12" cy="12" r="10" />
+    <polyline points="12 6 12 12 16 14" />
+  </S>
+);
+const IcoImage = () => (
+  <S>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <circle cx="8.5" cy="8.5" r="1.5" />
+    <polyline points="21 15 16 10 5 21" />
+  </S>
+);
+const IcoTable = () => (
+  <S>
+    <rect x="3" y="3" width="18" height="18" rx="2" />
+    <line x1="3" y1="9" x2="21" y2="9" />
+    <line x1="3" y1="15" x2="21" y2="15" />
+    <line x1="9" y1="3" x2="9" y2="21" />
+    <line x1="15" y1="3" x2="15" y2="21" />
+  </S>
+);
+const IcoX = () => (
+  <S>
+    <line x1="18" y1="6" x2="6" y2="18" />
+    <line x1="6" y1="6" x2="18" y2="18" />
+  </S>
+);
+const IcoPlus = () => (
+  <S>
+    <line x1="12" y1="5" x2="12" y2="19" />
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </S>
+);
+const IcoMinus = () => (
+  <S>
+    <line x1="5" y1="12" x2="19" y2="12" />
+  </S>
+);
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Tool definitions
+// ─────────────────────────────────────────────────────────────────────────────
+const TOOLBAR_GROUPS = [
+  {
+    label: 'File',
+    tools: [
+      { id: 'new', Icon: IcoNew, tip: 'New Canvas' },
+      { id: 'open', Icon: IcoOpen, tip: 'Open (.json)' },
+      { id: 'save', Icon: IcoSave, tip: 'Save' },
+      { id: 'saveas', Icon: IcoSaveAs, tip: 'Save As…' },
+      { id: 'delete', Icon: IcoDelete, tip: 'Delete Selected (Del)' },
+    ],
+  },
+  {
+    label: 'Clipboard',
+    tools: [
+      { id: 'cut', Icon: IcoCut, tip: 'Cut (Ctrl+X)' },
+      { id: 'copy', Icon: IcoCopy, tip: 'Copy (Ctrl+C)' },
+      { id: 'paste', Icon: IcoPaste, tip: 'Paste (Ctrl+V)' },
+    ],
+  },
+  {
+    label: 'Drawing tools',
+    tools: [
+      { id: 'rect', Icon: IcoRect, tip: 'Rectangle' },
+      { id: 'ellipse', Icon: IcoEllipse, tip: 'Ellipse' },
+      { id: 'shape', Icon: IcoShape, tip: 'Polygon' },
+      { id: 'text', Icon: IcoText, tip: 'Text Box' },
+      { id: 'line', Icon: IcoLine, tip: 'Line' },
+      { id: 'barcode', Icon: IcoBarcode, tip: 'QR / Barcode' },
+      { id: 'clock', Icon: IcoClock, tip: 'Live Clock' },
+      { id: 'image', Icon: IcoImage, tip: 'Image' },
+      { id: 'table', Icon: IcoTable, tip: 'Table' },
+    ],
+  },
+];
+
+const DRAW_TOOLS = [
+  'rect',
+  'ellipse',
+  'shape',
+  'text',
+  'line',
+  'barcode',
+  'clock',
+  'table',
+  'image',
+];
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Element factory
+// ─────────────────────────────────────────────────────────────────────────────
+function createElement(type, xCm, yCm) {
+  const base = { id: genId(), type, x: xCm, y: yCm, isNew: true };
+  switch (type) {
+    case 'rect':
+      return {
+        ...base,
+        w: 3,
+        h: 1.5,
+        fill: 'transparent',
+        stroke: '#0d1b42',
+        strokeW: 1.5,
+      };
+    case 'ellipse':
+      return {
+        ...base,
+        w: 3,
+        h: 1.5,
+        fill: 'transparent',
+        stroke: '#0d1b42',
+        strokeW: 1.5,
+      };
+    case 'shape':
+      return {
+        ...base,
+        w: 2.5,
+        h: 2.5,
+        fill: 'transparent',
+        stroke: '#0d1b42',
+        strokeW: 1.5,
+      };
+    case 'text':
+      return {
+        ...base,
+        w: 4,
+        h: 0.6,
+        content: 'New Text',
+        fontSize: 11,
+        bold: false,
+        color: '#111111',
+      };
+    case 'line':
+      return { ...base, w: 4, h: 0.1, stroke: '#0d1b42', strokeW: 1.5 };
+    case 'barcode':
+      return { ...base, w: 1.8, h: 1.8, qrText: '', sourceElementIds: [] };
+    case 'clock':
+      return { ...base, w: 4.5, h: 0.6, fontSize: 10, color: '#111111' };
+    case 'table':
+      return { ...base, w: 5, h: 2.5, rows: 3, cols: 3, cellData: {} };
+    default:
+      return null;
+  }
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Main Component
+// ─────────────────────────────────────────────────────────────────────────────
+export default function CanvaPrintModule() {
+  const [elements, setElements] = useState([]);
+  const [selectedId, setSelectedId] = useState(null);
+  const [editingId, setEditingId] = useState(null);
+  const [activeTool, setActiveTool] = useState('select');
+  const [clipboard, setClipboard] = useState(null);
+  const [isDragging, setIsDragging] = useState(false);
+  const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
+  const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
+  const [zoom, setZoom] = useState(4);
+  const [canvasSize] = useState({ w: 18, h: 8 });
+
+  // modal states
+  const [modal, setModal] = useState(null); // 'new' | 'saveas' | 'editqr'
+  const [saveAsName, setSaveAsName] = useState('MyLabel');
+  const [editQrText, setEditQrText] = useState('');
+  const [qrSelectedSources, setQrSelectedSources] = useState([]);
+
+  const canvasRef = useRef(null);
+  const fileInputRef = useRef(null);
+  const imgInputRef = useRef(null);
+
+  const selEl = elements.find((e) => e.id === selectedId) || null;
+  const toCm = useCallback((pxv) => pxv / (CM_TO_PX * zoom), [zoom]);
+  const px = useCallback((cm) => cm * CM_TO_PX * zoom, [zoom]);
+
+  // Derived helper: get QR value for an element
+  const getQrFinalValue = useCallback(
+    (el) => {
+      if (el.type !== 'barcode') return '';
+      if (el.sourceElementIds && el.sourceElementIds.length > 0) {
+        return el.sourceElementIds
+          .map((id) => elements.find((e) => e.id === id)?.content || '')
+          .filter((t) => t.length > 0)
+          .join('');
+      }
+      return el.qrText || '';
+    },
+    [elements],
+  );
+
+  useEffect(() => {
+    const hasNew = elements.some((e) => e.isNew);
+    if (!hasNew) return;
+    const t = setTimeout(() => {
+      setElements((prev) =>
+        prev.map((e) => (e.isNew ? { ...e, isNew: false } : e)),
+      );
+    }, 350);
+    return () => clearTimeout(t);
+  }, [elements]);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e) => {
+      if (editingId) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+        e.preventDefault();
+        doDelete();
+      }
+      if (e.ctrlKey && e.key === 'c') {
+        e.preventDefault();
+        doCopy();
+      }
+      if (e.ctrlKey && e.key === 'x') {
+        e.preventDefault();
+        doCut();
+      }
+      if (e.ctrlKey && e.key === 'v') {
+        e.preventDefault();
+        doPaste();
+      }
+      if (e.key === 'Escape') {
+        setActiveTool('select');
+        setSelectedId(null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [editingId, selectedId, clipboard, elements]);
+
+  // Listener for re-opening QR content modal from PropsPanel
+  useEffect(() => {
+    const onTrigger = (e) => {
+      const el = e.detail;
+      if (el && el.type === 'barcode') {
+        setEditQrText(el.qrText || '');
+        setQrSelectedSources(el.sourceElementIds || []);
+        setModal('editqr');
+      }
+    };
+    window.addEventListener('cpm-edit-qr', onTrigger);
+    return () => window.removeEventListener('cpm-edit-qr', onTrigger);
+  }, []);
+
+  // File Operations
+  const doNew = () => setModal('new');
+  const confirmNew = () => {
+    setElements([]);
+    setSelectedId(null);
+    setClipboard(null);
+    setEditingId(null);
+    setActiveTool('select');
+    setModal(null);
+  };
+  const doSave = useCallback(
+    (name = 'Label') => {
+      const blob = new Blob([JSON.stringify({ elements }, null, 2)], {
+        type: 'application/json',
+      });
+      const a = Object.assign(document.createElement('a'), {
+        href: URL.createObjectURL(blob),
+        download: `${name}.cpm.json`,
+      });
+      a.click();
+      URL.revokeObjectURL(a.href);
+    },
+    [elements],
+  );
+  const doSaveAs = () => {
+    setSaveAsName('MyLabel');
+    setModal('saveas');
+  };
+  const confirmSaveAs = () => {
+    doSave(saveAsName || 'Label');
+    setModal(null);
+  };
+  const doOpen = () => fileInputRef.current?.click();
+  const onFileLoad = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = (ev) => {
+      try {
+        const data = JSON.parse(ev.target.result);
+        if (data.elements) {
+          setElements(data.elements);
+          setSelectedId(null);
+        }
+      } catch {
+        alert('Invalid label file.');
+      }
+    };
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  // Element Operations
+  const doDelete = useCallback(() => {
+    if (!selectedId) return;
+    setElements((p) => p.filter((e) => e.id !== selectedId));
+    setSelectedId(null);
+  }, [selectedId]);
+  const doCopy = useCallback(() => {
+    const el = elements.find((e) => e.id === selectedId);
+    if (el) setClipboard({ ...el });
+  }, [elements, selectedId]);
+  const doCut = useCallback(() => {
+    doCopy();
+    doDelete();
+  }, [doCopy, doDelete]);
+  const doPaste = useCallback(() => {
+    if (!clipboard) return;
+    const el = {
+      ...clipboard,
+      id: genId(),
+      x: (clipboard.x || 0) + 0.4,
+      y: (clipboard.y || 0) + 0.4,
+      isNew: true,
+    };
+    setElements((p) => [...p, el]);
+    setSelectedId(el.id);
+  }, [clipboard]);
+  const updateEl = useCallback((id, patch) => {
+    setElements((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));
+  }, []);
+
+  // Mouse Handlers
+  const getCanvasCm = useCallback(
+    (e) => {
+      const rect = canvasRef.current?.getBoundingClientRect();
+      if (!rect) return { x: 0, y: 0 };
+      return { x: toCm(e.clientX - rect.left), y: toCm(e.clientY - rect.top) };
+    },
+    [toCm],
+  );
+  const handleCanvasMouseMove = useCallback(
+    (e) => {
+      const pos = getCanvasCm(e);
+      setMousePos({
+        x: parseFloat(pos.x.toFixed(2)),
+        y: parseFloat(pos.y.toFixed(2)),
+      });
+      if (isDragging && selectedId) {
+        const dx = toCm(e.clientX - dragStart.x);
+        const dy = toCm(e.clientY - dragStart.y);
+        setElements((p) =>
+          p.map((el) =>
+            el.id === selectedId
+              ? {
+                  ...el,
+                  x: Math.max(0, parseFloat((el.x + dx).toFixed(3))),
+                  y: Math.max(0, parseFloat((el.y + dy).toFixed(3))),
+                }
+              : el,
+          ),
+        );
+        setDragStart({ x: e.clientX, y: e.clientY });
+      }
+    },
+    [isDragging, selectedId, dragStart, toCm, getCanvasCm],
+  );
+  const handleCanvasClick = useCallback(
+    (e) => {
+      if (e.target !== canvasRef.current) return;
+      if (activeTool === 'image') {
+        imgInputRef.current?.click();
+        return;
+      }
+      if (DRAW_TOOLS.includes(activeTool)) {
+        const { x, y } = getCanvasCm(e);
+        const el = createElement(
+          activeTool,
+          Math.max(0, parseFloat(x.toFixed(3))),
+          Math.max(0, parseFloat(y.toFixed(3))),
+        );
+        if (el) {
+          setElements((p) => [...p, el]);
+          setSelectedId(el.id);
+          if (activeTool === 'barcode') {
+            setEditQrText('');
+            setQrSelectedSources([]);
+            setModal('editqr');
+          }
+          setActiveTool('select');
+        }
+      } else {
+        setSelectedId(null);
+      }
+    },
+    [activeTool, getCanvasCm],
+  );
+  const handleElMouseDown = useCallback(
+    (e, id) => {
+      if (DRAW_TOOLS.includes(activeTool) && activeTool !== 'image') return;
+      e.stopPropagation();
+      setSelectedId(id);
+      setIsDragging(true);
+      setDragStart({ x: e.clientX, y: e.clientY });
+    },
+    [activeTool],
+  );
+  const handleMouseUp = () => setIsDragging(false);
+  const handleElDblClick = useCallback((e, el) => {
+    e.stopPropagation();
+    if (el.type === 'text') {
+      setEditingId(el.id);
+      return;
+    }
+    if (el.type === 'barcode') {
+      setEditQrText(el.qrText || '');
+      setQrSelectedSources(el.sourceElementIds || []);
+      setModal('editqr');
+    }
+  }, []);
+  const handleTextBlur = useCallback(
+    (e, id) => {
+      updateEl(id, { content: e.currentTarget.innerText.trim() || 'Text' });
+      setEditingId(null);
+    },
+    [updateEl],
+  );
+
+  const onImgPick = (e) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const el = {
+      id: genId(),
+      type: 'image',
+      x: 0.5,
+      y: 0.5,
+      w: 4,
+      h: 3,
+      src: URL.createObjectURL(file),
+      isNew: true,
+    };
+    setElements((p) => [...p, el]);
+    setSelectedId(el.id);
+    setActiveTool('select');
+    e.target.value = '';
+  };
+
+  const handleTool = (id) => {
+    switch (id) {
+      case 'new':
+        doNew();
+        break;
+      case 'open':
+        doOpen();
+        break;
+      case 'save':
+        doSave();
+        break;
+      case 'saveas':
+        doSaveAs();
+        break;
+      case 'delete':
+        doDelete();
+        break;
+      case 'cut':
+        doCut();
+        break;
+      case 'copy':
+        doCopy();
+        break;
+      case 'paste':
+        doPaste();
+        break;
+      default:
+        setActiveTool((p) => (p === id ? 'select' : id));
+    }
+  };
+
+  const zoomIn = () => setZoom((z) => Math.min(z + 0.5, 8));
+  const zoomOut = () => setZoom((z) => Math.max(z - 0.5, 0.5));
+
+  const isDrawMode = DRAW_TOOLS.includes(activeTool);
+  const canvasCursor = isDrawMode
+    ? 'crosshair'
+    : isDragging
+      ? 'grabbing'
+      : 'default';
+
+  return (
+    <div className="cpm-root">
+      <input
+        ref={fileInputRef}
+        type="file"
+        accept=".json"
+        hidden
+        onChange={onFileLoad}
+      />
+      <input
+        ref={imgInputRef}
+        type="file"
+        accept="image/*"
+        hidden
+        onChange={onImgPick}
+      />
+
+      <div className="cpm-toolbar">
+        {TOOLBAR_GROUPS.map((grp, gi) => (
+          <React.Fragment key={gi}>
+            <div className="cpm-tool-group">
+              {grp.tools.map(({ id, Icon, tip }) => {
+                const disabled =
+                  (['delete', 'cut', 'copy'].includes(id) && !selectedId) ||
+                  (id === 'paste' && !clipboard);
+                const drawActive = activeTool === id && DRAW_TOOLS.includes(id);
+                return (
+                  <button
+                    key={id}
+                    title={tip}
+                    disabled={disabled}
+                    className={`cpm-tool-btn${drawActive ? ' active' : ''}${disabled ? ' disabled' : ''}`}
+                    onClick={() => handleTool(id)}
+                  >
+                    <Icon />
+                  </button>
+                );
+              })}
+            </div>
+            {gi < TOOLBAR_GROUPS.length - 1 && (
+              <div className="cpm-toolbar-sep" />
+            )}
+          </React.Fragment>
+        ))}
+        {isDrawMode && (
+          <div className="cpm-draw-badge">
+            <span className="cpm-draw-dot" />
+            {activeTool.charAt(0).toUpperCase() + activeTool.slice(1)} — click
+            on canvas
+            <button
+              className="cpm-badge-dismiss"
+              onClick={() => setActiveTool('select')}
+            >
+              ✕
+            </button>
+          </div>
+        )}
+      </div>
+
+      <div className="cpm-toolbar-labels">
+        <span style={{ width: 196 }}>File</span>
+        <span className="cpm-tl-sep" />
+        <span style={{ width: 120 }}>Clipboard</span>
+        <span className="cpm-tl-sep" />
+        <span>Drawing tools</span>
+      </div>
+
+      <div
+        className="cpm-body"
+        onMouseMove={handleCanvasMouseMove}
+        onMouseUp={handleMouseUp}
+      >
+        <div className="cpm-canvas-area">
+          <div style={{ display: 'flex' }}>
+            <div className="cpm-corner" />
+            <HRuler zoom={zoom} w={canvasSize.w} />
+          </div>
+          <div className="cpm-canvas-row">
+            <VRuler zoom={zoom} h={canvasSize.h} />
+            <div
+              ref={canvasRef}
+              className="cpm-canvas"
+              style={{
+                width: px(canvasSize.w),
+                height: px(canvasSize.h),
+                cursor: canvasCursor,
+              }}
+              onClick={handleCanvasClick}
+            >
+              <Grid zoom={zoom} w={canvasSize.w} h={canvasSize.h} />
+              {elements.length === 0 && (
+                <div className="cpm-empty-hint">
+                  <svg
+                    width="48"
+                    height="48"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="#c0c8d8"
+                    strokeWidth="1.2"
+                  >
+                    <rect x="3" y="3" width="18" height="18" rx="2" />
+                    <line x1="12" y1="8" x2="12" y2="16" />
+                    <line x1="8" y1="12" x2="16" y2="12" />
+                  </svg>
+                  <p>
+                    Select a drawing tool from the toolbar
+                    <br />
+                    and click here to add elements
+                  </p>
+                </div>
+              )}
+              {elements.map((el) => (
+                <CanvasEl
+                  key={el.id}
+                  el={el}
+                  zoom={zoom}
+                  isSelected={selectedId === el.id}
+                  isEditing={editingId === el.id}
+                  onMouseDown={(e) => handleElMouseDown(e, el.id)}
+                  onDblClick={(e) => handleElDblClick(e, el)}
+                  onTextBlur={(e) => handleTextBlur(e, el.id)}
+                  qrValue={getQrFinalValue(el)}
+                />
+              ))}
+            </div>
+          </div>
+        </div>
+        {selEl && (
+          <PropsPanel
+            el={selEl}
+            onChange={(patch) => updateEl(selEl.id, patch)}
+            onDelete={doDelete}
+            onDuplicate={() => {
+              const dup = {
+                ...selEl,
+                id: genId(),
+                x: selEl.x + 0.4,
+                y: selEl.y + 0.4,
+                isNew: true,
+              };
+              setElements((p) => [...p, dup]);
+              setSelectedId(dup.id);
+            }}
+            allElements={elements}
+          />
+        )}
+      </div>
+
+      <div className="cpm-statusbar">
+        <div className="cpm-status-fields">
+          <SField label="X (cm)" value={mousePos.x.toFixed(2)} />
+          <SField
+            label="Y (cm)"
+            value={selEl ? selEl.y.toFixed(2) : mousePos.y.toFixed(2)}
+            hi={!!selEl}
+          />
+          <SField label="W (cm)" value={selEl ? selEl.w.toFixed(2) : '—'} />
+          <SField label="H (cm)" value={selEl ? selEl.h.toFixed(2) : '—'} />
+          <SField label="Angle" value="0°" />
+          {elements.length > 0 && (
+            <span className="cpm-el-count">
+              {elements.length} element{elements.length > 1 ? 's' : ''}
+            </span>
+          )}
+        </div>
+        <div className="cpm-zoom-row">
+          <button
+            className="cpm-zoom-btn"
+            onClick={zoomOut}
+            title="Zoom Out (−)"
+          >
+            <IcoMinus />
+          </button>
+          <span className="cpm-zoom-val">{Math.round(zoom * 100)}%</span>
+          <button className="cpm-zoom-btn" onClick={zoomIn} title="Zoom In (+)">
+            <IcoPlus />
+          </button>
+        </div>
+      </div>
+
+      {modal === 'new' && (
+        <Modal title="New Canvas" onClose={() => setModal(null)}>
+          <p className="cpm-modal-text">
+            Clear the canvas? All unsaved elements will be lost.
+          </p>
+          <div className="cpm-modal-actions">
+            <button
+              className="cpm-btn cpm-btn-ghost"
+              onClick={() => setModal(null)}
+            >
+              Cancel
+            </button>
+            <button className="cpm-btn cpm-btn-danger" onClick={confirmNew}>
+              Clear & Start New
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {modal === 'saveas' && (
+        <Modal title="Save As…" onClose={() => setModal(null)}>
+          <div className="cpm-field-row">
+            <label>File name</label>
+            <input
+              className="cpm-input"
+              value={saveAsName}
+              autoFocus
+              onChange={(e) => setSaveAsName(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && confirmSaveAs()}
+            />
+          </div>
+          <div className="cpm-modal-actions">
+            <button
+              className="cpm-btn cpm-btn-ghost"
+              onClick={() => setModal(null)}
+            >
+              Cancel
+            </button>
+            <button className="cpm-btn cpm-btn-primary" onClick={confirmSaveAs}>
+              Save
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {modal === 'editqr' && selEl?.type === 'barcode' && (
+        <Modal title="Configure QR Code" onClose={() => setModal(null)}>
+          <div className="cpm-modal-description">
+            Select text elements to include in this QR code or enter manual
+            text.
+          </div>
+          <div className="cpm-qr-setup">
+            <div className="cpm-qr-list">
+              <div className="cpm-list-header">Existing Text Elements</div>
+              {elements.filter((e) => e.type === 'text').length === 0 ? (
+                <div className="cpm-empty-list">
+                  No text elements found on canvas.
+                </div>
+              ) : (
+                elements
+                  .filter((e) => e.type === 'text')
+                  .map((te) => (
+                    <label key={te.id} className="cpm-qr-item">
+                      <input
+                        type="checkbox"
+                        checked={qrSelectedSources.includes(te.id)}
+                        onChange={(e) => {
+                          if (e.target.checked)
+                            setQrSelectedSources((p) => [...p, te.id]);
+                          else
+                            setQrSelectedSources((p) =>
+                              p.filter((id) => id !== te.id),
+                            );
+                        }}
+                      />
+                      <span className="cpm-item-id">{te.id}</span>
+                      <span className="cpm-item-text">{te.content}</span>
+                    </label>
+                  ))
+              )}
+            </div>
+            <div className="cpm-field-row" style={{ marginTop: '12px' }}>
+              <label>Manual Override / Default Text</label>
+              <input
+                className="cpm-input"
+                value={editQrText}
+                placeholder="Enter static text if no sources selected..."
+                onChange={(e) => setEditQrText(e.target.value)}
+              />
+            </div>
+            <div className="cpm-qr-preview">
+              <label>Resulting QR Content:</label>
+              <div className="cpm-preview-box">
+                {qrSelectedSources.length > 0
+                  ? qrSelectedSources
+                      .map(
+                        (id) =>
+                          elements.find((e) => e.id === id)?.content || '',
+                      )
+                      .join('')
+                  : editQrText || '(empty)'}
+              </div>
+            </div>
+          </div>
+          <div className="cpm-modal-actions">
+            <button
+              className="cpm-btn cpm-btn-ghost"
+              onClick={() => setModal(null)}
+            >
+              Cancel
+            </button>
+            <button
+              className="cpm-btn cpm-btn-primary"
+              onClick={() => {
+                updateEl(selEl.id, {
+                  qrText: editQrText,
+                  sourceElementIds: qrSelectedSources,
+                });
+                setModal(null);
+              }}
+            >
+              Generate QR Code
+            </button>
+          </div>
+        </Modal>
+      )}
+    </div>
+  );
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Sub-Components
+// ─────────────────────────────────────────────────────────────────────────────
+function PropsPanel({ el, onChange, onDelete, onDuplicate, allElements }) {
+  return (
+    <div className="cpm-props" key={el.id}>
+      <div className="cpm-props-header">
+        <span className="cpm-props-type">{el.type.toUpperCase()}</span>
+        <div className="cpm-props-actions">
+          <button
+            className="cpm-props-btn"
+            title="Duplicate"
+            onClick={onDuplicate}
+          >
+            <IcoCopy size={14} />
+          </button>
+          <button
+            className="cpm-props-btn danger"
+            title="Delete"
+            onClick={onDelete}
+          >
+            <IcoDelete size={14} />
+          </button>
+        </div>
+      </div>
+      <section className="cpm-props-section">
+        <div className="cpm-props-row2">
+          <PropNum
+            label="X (cm)"
+            value={el.x}
+            onChange={(v) => onChange({ x: +v })}
+            step={0.05}
+          />
+          <PropNum
+            label="Y (cm)"
+            value={el.y}
+            onChange={(v) => onChange({ y: +v })}
+            step={0.05}
+          />
+        </div>
+        <div className="cpm-props-row2">
+          <PropNum
+            label="W (cm)"
+            value={el.w}
+            onChange={(v) => onChange({ w: Math.max(0.1, +v) })}
+            step={0.1}
+          />
+          <PropNum
+            label="H (cm)"
+            value={el.h}
+            onChange={(v) => onChange({ h: Math.max(0.1, +v) })}
+            step={0.1}
+          />
+        </div>
+      </section>
+
+      {el.type === 'text' && (
+        <section className="cpm-props-section">
+          <div className="cpm-field-row">
+            <label>Content</label>
+            <textarea
+              className="cpm-textarea"
+              value={el.content}
+              onChange={(e) => onChange({ content: e.target.value })}
+              rows={2}
+            />
+          </div>
+          <div className="cpm-props-row2">
+            <PropNum
+              label="Font size"
+              value={el.fontSize}
+              onChange={(v) => onChange({ fontSize: Math.max(6, +v) })}
+              step={1}
+            />
+            <div className="cpm-field-row">
+              <label>Color</label>
+              <input
+                type="color"
+                value={el.color || '#111111'}
+                className="cpm-color"
+                onChange={(e) => onChange({ color: e.target.value })}
+              />
+            </div>
+          </div>
+          <label className="cpm-checkbox-row">
+            <input
+              type="checkbox"
+              checked={!!el.bold}
+              onChange={(e) => onChange({ bold: e.target.checked })}
+            />
+            Bold
+          </label>
+        </section>
+      )}
+
+      {(el.type === 'rect' || el.type === 'ellipse' || el.type === 'shape') && (
+        <section className="cpm-props-section">
+          <div className="cpm-props-row2">
+            <div className="cpm-field-row">
+              <label>Fill</label>
+              <input
+                type="color"
+                value={
+                  el.fill === 'transparent' ? '#ffffff' : el.fill || '#ffffff'
+                }
+                className="cpm-color"
+                onChange={(e) => onChange({ fill: e.target.value })}
+              />
+            </div>
+            <div className="cpm-field-row">
+              <label>Stroke</label>
+              <input
+                type="color"
+                value={el.stroke || '#0d1b42'}
+                className="cpm-color"
+                onChange={(e) => onChange({ stroke: e.target.value })}
+              />
+            </div>
+          </div>
+          <PropNum
+            label="Stroke width"
+            value={el.strokeW || 1.5}
+            onChange={(v) => onChange({ strokeW: Math.max(0.5, +v) })}
+            step={0.5}
+          />
+          <label className="cpm-checkbox-row">
+            <input
+              type="checkbox"
+              checked={el.fill === 'transparent'}
+              onChange={(e) =>
+                onChange({ fill: e.target.checked ? 'transparent' : '#ffffff' })
+              }
+            />
+            Transparent fill
+          </label>
+        </section>
+      )}
+
+      {el.type === 'line' && (
+        <section className="cpm-props-section">
+          <div className="cpm-props-row2">
+            <div className="cpm-field-row">
+              <label>Color</label>
+              <input
+                type="color"
+                value={el.stroke || '#0d1b42'}
+                className="cpm-color"
+                onChange={(e) => onChange({ stroke: e.target.value })}
+              />
+            </div>
+            <PropNum
+              label="Thickness"
+              value={el.strokeW || 1.5}
+              onChange={(v) => onChange({ strokeW: +v })}
+              step={0.5}
+            />
+          </div>
+        </section>
+      )}
+
+      {el.type === 'barcode' && (
+        <section className="cpm-props-section">
+          <div className="cpm-field-row">
+            <label>Bound Sources</label>
+            <div className="cpm-tag-list">
+              {el.sourceElementIds?.length > 0 ? (
+                el.sourceElementIds.map((id) => (
+                  <span key={id} className="cpm-tag">
+                    {id}
+                  </span>
+                ))
+              ) : (
+                <span className="cpm-tag-empty">None</span>
+              )}
+            </div>
+          </div>
+          <button
+            className="cpm-btn cpm-btn-ghost sm"
+            onClick={() => {
+              // Re-open configuring modal for this QR
+              window.dispatchEvent(
+                new CustomEvent('cpm-edit-qr', { detail: el }),
+              );
+            }}
+          >
+            Re-configure QR Logic
+          </button>
+        </section>
+      )}
+
+      {el.type === 'clock' && (
+        <section className="cpm-props-section">
+          <PropNum
+            label="Font size"
+            value={el.fontSize || 10}
+            onChange={(v) => onChange({ fontSize: +v })}
+            step={1}
+          />
+          <div className="cpm-field-row">
+            <label>Color</label>
+            <input
+              type="color"
+              value={el.color || '#111111'}
+              className="cpm-color"
+              onChange={(e) => onChange({ color: e.target.value })}
+            />
+          </div>
+        </section>
+      )}
+    </div>
+  );
+}
+
+function PropNum({ label, value, onChange, step = 1 }) {
+  return (
+    <div className="cpm-field-row">
+      <label>{label}</label>
+      <input
+        type="number"
+        className="cpm-input sm"
+        value={Number(value).toFixed(step < 1 ? 2 : 0)}
+        step={step}
+        onChange={(e) => onChange(e.target.value)}
+      />
+    </div>
+  );
+}
+
+function Modal({ title, onClose, children }) {
+  return (
+    <div className="cpm-overlay" onClick={onClose}>
+      <div className="cpm-modal" onClick={(e) => e.stopPropagation()}>
+        <div className="cpm-modal-top">
+          <span>{title}</span>
+          <button className="cpm-modal-x" onClick={onClose}>
+            <IcoX />
+          </button>
+        </div>
+        <div className="cpm-modal-body">{children}</div>
+      </div>
+    </div>
+  );
+}
+
+function SField({ label, value, hi }) {
+  return (
+    <div className="cpm-sf">
+      <span className="cpm-sf-label">{label}</span>
+      <span className={`cpm-sf-val${hi ? ' hi' : ''}`}>{value}</span>
+    </div>
+  );
+}
+
+function CanvasEl({
+  el,
+  zoom,
+  isSelected,
+  isEditing,
+  onMouseDown,
+  onDblClick,
+  onTextBlur,
+  qrValue,
+}) {
+  const CP = CM_TO_PX * zoom;
+  const outer = {
+    position: 'absolute',
+    left: el.x * CP,
+    top: el.y * CP,
+    width: el.w * CP,
+    height: el.h * CP,
+    cursor: isSelected ? 'grab' : 'default',
+    boxSizing: 'border-box',
+    userSelect: 'none',
+  };
+
+  return (
+    <div
+      className={`cpm-el${isSelected ? ' selected' : ''}${el.isNew ? ' entering' : ''}`}
+      style={outer}
+      onMouseDown={onMouseDown}
+      onDoubleClick={onDblClick}
+    >
+      {el.type === 'barcode' && (
+        <QRCodeCanvas
+          value={qrValue || ' '}
+          size={Math.round(el.w * CP)}
+          style={{ width: '100%', height: '100%' }}
+        />
+      )}
+      {el.type === 'text' &&
+        (isEditing ? (
+          <div
+            contentEditable
+            suppressContentEditableWarning
+            autoFocus
+            onBlur={onTextBlur}
+            style={{
+              fontSize: `${el.fontSize * zoom}px`,
+              fontWeight: el.bold ? 700 : 400,
+              color: el.color,
+              fontFamily: 'monospace',
+              width: '100%',
+              height: '100%',
+              outline: '2px solid #00bcd4',
+              background: '#fff',
+            }}
+          >
+            {el.content}
+          </div>
+        ) : (
+          <div
+            style={{
+              fontSize: `${el.fontSize * zoom}px`,
+              fontWeight: el.bold ? 700 : 400,
+              color: el.color,
+              fontFamily: 'monospace',
+              width: '100%',
+              height: '100%',
+              display: 'flex',
+              alignItems: 'center',
+            }}
+          >
+            {el.content}
+          </div>
+        ))}
+      {el.type === 'rect' && (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            border: `${(el.strokeW * zoom) / 4}px solid ${el.stroke}`,
+            background: el.fill,
+          }}
+        />
+      )}
+      {el.type === 'ellipse' && (
+        <div
+          style={{
+            width: '100%',
+            height: '100%',
+            border: `${(el.strokeW * zoom) / 4}px solid ${el.stroke}`,
+            background: el.fill,
+            borderRadius: '50%',
+          }}
+        />
+      )}
+      {el.type === 'image' && (
+        <img
+          src={el.src}
+          style={{ width: '100%', height: '100%', objectFit: 'contain' }}
+          alt=""
+        />
+      )}
+      {el.type === 'clock' && (
+        <ClockEl fontSize={el.fontSize} zoom={zoom} color={el.color} />
+      )}
+      {isSelected && (
+        <>
+          <span className="cpm-handle" style={{ top: -4, left: -4 }} />
+          <span className="cpm-handle" style={{ top: -4, right: -4 }} />
+          <span className="cpm-handle" style={{ bottom: -4, left: -4 }} />
+          <span className="cpm-handle" style={{ bottom: -4, right: -4 }} />
+        </>
+      )}
+    </div>
+  );
+}
+
+function ClockEl({ fontSize, zoom, color }) {
+  const [t, setT] = useState(new Date());
+  useEffect(() => {
+    const i = setInterval(() => setT(new Date()), 1000);
+    return () => clearInterval(i);
+  }, []);
+  return (
+    <div
+      style={{
+        fontSize: `${fontSize * zoom}px`,
+        color,
+        fontFamily: 'monospace',
+      }}
+    >
+      {t.toLocaleTimeString()}
+    </div>
+  );
+}
+
+function HRuler({ zoom, w }) {
+  const tick = CM_TO_PX * zoom;
+  return (
+    <svg className="cpm-ruler-h" width={w * tick} height={20}>
+      {Array.from({ length: w + 1 }, (_, i) => (
+        <React.Fragment key={i}>
+          <line x1={i * tick} y1={0} x2={i * tick} y2={14} stroke="#aaa" />
+          <text x={i * tick + 2} y={11} fontSize="8" fill="#999">
+            {i}
+          </text>
+        </React.Fragment>
+      ))}
+    </svg>
+  );
+}
+function VRuler({ zoom, h }) {
+  const tick = CM_TO_PX * zoom;
+  return (
+    <svg className="cpm-ruler-v" width={20} height={h * tick}>
+      {Array.from({ length: h + 1 }, (_, i) => (
+        <React.Fragment key={i}>
+          <line x1={0} y1={i * tick} x2={14} y2={i * tick} stroke="#aaa" />
+          <text
+            x={9}
+            y={i * tick + 10}
+            fontSize="8"
+            fill="#999"
+            transform={`rotate(-90,9,${i * tick + 10})`}
+            textAnchor="middle"
+          >
+            {i}
+          </text>
+        </React.Fragment>
+      ))}
+    </svg>
+  );
+}
+function Grid({ zoom, w, h }) {
+  const cell = CM_TO_PX * zoom;
+  return (
+    <svg
+      style={{ position: 'absolute', top: 0, left: 0, pointerEvents: 'none' }}
+      width={w * cell}
+      height={h * cell}
+    >
+      {Array.from({ length: w - 1 }, (_, i) => (
+        <line
+          key={i}
+          x1={(i + 1) * cell}
+          y1={0}
+          x2={(i + 1) * cell}
+          y2={h * cell}
+          stroke="#eee"
+        />
+      ))}
+      {Array.from({ length: h - 1 }, (_, i) => (
+        <line
+          key={i}
+          x1={0}
+          y1={(i + 1) * cell}
+          x2={w * cell}
+          y2={(i + 1) * cell}
+          stroke="#eee"
+        />
+      ))}
+    </svg>
+  );
+}
