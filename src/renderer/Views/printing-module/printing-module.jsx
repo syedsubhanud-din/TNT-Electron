@@ -14,7 +14,7 @@ export default function PrintingModule() {
   });
 
   const [printerSettings, setPrinterSettings] = useState({
-    printer_ip: '172.16.0.55',
+    printer_ip: '192.168.2.22',
     printer_port: 9944,
   });
 
@@ -366,7 +366,7 @@ export default function PrintingModule() {
                     printer_ip: e.target.value,
                   })
                 }
-                placeholder="172.16.0.55"
+                placeholder="192.168.2.22"
               />
             </div>
             <div className="form-group">

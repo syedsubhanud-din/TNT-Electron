@@ -1,7 +1,7 @@
 import socket
 import time
 
-printer_ip = "172.16.0.55"
+printer_ip = "192.168.2.22"
 port = 9944
 
 commands = {

@@ -249,7 +249,7 @@ ipcMain.handle('get-printer-config', async () => {
   } catch (error) {
     console.error('Error reading printer config:', error);
   }
-  return { printer_ip: '172.16.0.55', printer_port: 9944 };
+  return { printer_ip: '192.168.2.22', printer_port: 9944 };
 });
 
 ipcMain.handle('save-printer-config', async (_event, config) => {
@@ -269,6 +269,34 @@ ipcMain.handle('save-printer-config', async (_event, config) => {
     console.error('Error saving printer config:', error);
     return { success: false, error: error.message };
   }
+});
+
+ipcMain.handle('test-printer-connection', async (_event, config) => {
+  const { printer_ip, printer_port } = config;
+  const net = require('net');
+  return new Promise((resolve) => {
+    const socket = new net.Socket();
+    const timeout = 3000;
+
+    socket.setTimeout(timeout);
+
+    socket.on('connect', () => {
+      socket.end();
+      resolve({ success: true });
+    });
+
+    socket.on('timeout', () => {
+      socket.destroy();
+      resolve({ success: false, error: 'Connection timed out' });
+    });
+
+    socket.on('error', (err: any) => {
+      socket.destroy();
+      resolve({ success: false, error: err.message });
+    });
+
+    socket.connect(printer_port, printer_ip);
+  });
 });
 
 if (process.env.NODE_ENV === 'production') {

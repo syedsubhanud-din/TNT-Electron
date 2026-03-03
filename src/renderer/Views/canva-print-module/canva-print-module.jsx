@@ -1,5 +1,6 @@
 import React, { useState, useRef, useEffect, useCallback } from 'react';
 import { QRCodeCanvas } from 'qrcode.react';
+import toast from 'react-hot-toast';
 import './canva-print-module.css';
 
 // ─────────────────────────────────────────────────────────────────────────────
@@ -156,6 +157,19 @@ const IcoMinus = () => (
     <line x1="5" y1="12" x2="19" y2="12" />
   </S>
 );
+const IcoPrint = () => (
+  <S>
+    <polyline points="6 9 6 2 18 2 18 9" />
+    <path d="M6 18H4a2 2 0 0 1-2-2v-5a2 2 0 0 1 2-2h16a2 2 0 0 1 2 2v5a2 2 0 0 1-2 2h-2" />
+    <rect x="6" y="14" width="12" height="8" />
+  </S>
+);
+const IcoSettings = () => (
+  <S>
+    <circle cx="12" cy="12" r="3" />
+    <path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1 0 2.83 2 2 0 0 1-2.83 0l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-2 2 2 2 0 0 1-2-2v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83 0 2 2 0 0 1 0-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1-2-2 2 2 0 0 1 2-2h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 0-2.83 2 2 0 0 1 2.83 0l.06.06a1.65 1.65 0 0 0 1.82.33 1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 2-2 2 2 0 0 1 2 2v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 0 2 2 0 0 1 0 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82 1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 2 2 2 2 0 0 1-2 2h-.09a1.65 1.65 0 0 0-1.51 1z" />
+  </S>
+);
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Tool definitions
@@ -168,6 +182,8 @@ const TOOLBAR_GROUPS = [
       { id: 'open', Icon: IcoOpen, tip: 'Open (.json)' },
       { id: 'save', Icon: IcoSave, tip: 'Save' },
       { id: 'saveas', Icon: IcoSaveAs, tip: 'Save As…' },
+      { id: 'print', Icon: IcoPrint, tip: 'Send to Printer' },
+      { id: 'settings', Icon: IcoSettings, tip: 'Printer Settings' },
       { id: 'delete', Icon: IcoDelete, tip: 'Delete Selected (Del)' },
     ],
   },
@@ -244,7 +260,7 @@ function createElement(type, xCm, yCm) {
       return {
         ...base,
         w: 4,
-        h: 0.6,
+        h: 0.4,
         content: 'New Text',
         fontSize: 11,
         bold: false,
@@ -255,7 +271,7 @@ function createElement(type, xCm, yCm) {
     case 'barcode':
       return { ...base, w: 1.8, h: 1.8, qrText: '', sourceElementIds: [] };
     case 'clock':
-      return { ...base, w: 4.5, h: 0.6, fontSize: 10, color: '#111111' };
+      return { ...base, w: 4.5, h: 0.4, fontSize: 10, color: '#111111' };
     case 'table':
       return { ...base, w: 5, h: 2.5, rows: 3, cols: 3, cellData: {} };
     default:
@@ -273,13 +289,19 @@ export default function CanvaPrintModule() {
   const [activeTool, setActiveTool] = useState('select');
   const [clipboard, setClipboard] = useState(null);
   const [isDragging, setIsDragging] = useState(false);
+  const [isResizing, setIsResizing] = useState(false);
+  const [resizeHandle, setResizeHandle] = useState(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(4);
-  const [canvasSize] = useState({ w: 18, h: 8 });
+  const [zoom, setZoom] = useState(12);
+  const [canvasSize] = useState({ w: 300 / 190, h: 300 / 190 });
+  const [printerConfig, setPrinterConfig] = useState({
+    printer_ip: '192.168.2.22',
+    printer_port: 9944,
+  });
 
   // modal states
-  const [modal, setModal] = useState(null); // 'new' | 'saveas' | 'editqr'
+  const [modal, setModal] = useState(null); // 'new' | 'saveas' | 'editqr' | 'settings'
   const [saveAsName, setSaveAsName] = useState('MyLabel');
   const [editQrText, setEditQrText] = useState('');
   const [qrSelectedSources, setQrSelectedSources] = useState([]);
@@ -317,6 +339,16 @@ export default function CanvaPrintModule() {
     }, 350);
     return () => clearTimeout(t);
   }, [elements]);
+
+  useEffect(() => {
+    const loadConfig = async () => {
+      if (window.electron && window.electron.getPrinterConfig) {
+        const config = await window.electron.getPrinterConfig();
+        setPrinterConfig(config);
+      }
+    };
+    loadConfig();
+  }, []);
 
   // Keyboard shortcuts
   useEffect(() => {
@@ -442,6 +474,48 @@ export default function CanvaPrintModule() {
     setElements((p) => [...p, el]);
     setSelectedId(el.id);
   }, [clipboard]);
+
+  const handlePrint = async () => {
+    if (elements.length === 0) {
+      toast.error('Canvas is empty');
+      return;
+    }
+
+    const loadingToast = toast.loading('Sending to printer...');
+    try {
+      const payload = JSON.stringify({ elements });
+      const args = [
+        '--payload',
+        payload,
+        '--ip',
+        printerConfig.printer_ip,
+        '--port',
+        printerConfig.printer_port.toString(),
+        '--print',
+      ];
+
+      if (window.electron && window.electron.runPython) {
+        const output = await window.electron.runPython(
+          'create_message/create_dynamic_label.py',
+          args,
+        );
+        console.log('Printer Output:', output);
+        if (output.includes('[OK]')) {
+          toast.success('Print job started!', { id: loadingToast });
+        } else {
+          toast.error(`Printer error: ${output.slice(0, 100)}`, {
+            id: loadingToast,
+          });
+        }
+      } else {
+        toast.success('Sent to printer (Dev Mode)', { id: loadingToast });
+      }
+    } catch (error) {
+      toast.error(`Error: ${error.message}`, { id: loadingToast });
+      console.error('Print error:', error);
+    }
+  };
+
   const updateEl = useCallback((id, patch) => {
     setElements((p) => p.map((e) => (e.id === id ? { ...e, ...patch } : e)));
   }, []);
@@ -466,20 +540,88 @@ export default function CanvaPrintModule() {
         const dx = toCm(e.clientX - dragStart.x);
         const dy = toCm(e.clientY - dragStart.y);
         setElements((p) =>
-          p.map((el) =>
-            el.id === selectedId
-              ? {
-                  ...el,
-                  x: Math.max(0, parseFloat((el.x + dx).toFixed(3))),
-                  y: Math.max(0, parseFloat((el.y + dy).toFixed(3))),
-                }
-              : el,
-          ),
+          p.map((el) => {
+            if (el.id !== selectedId) return el;
+
+            // Constrain new position within [0, canvasSize - elementSize]
+            let newX = el.x + dx;
+            let newY = el.y + dy;
+
+            newX = Math.max(0, Math.min(newX, canvasSize.w - el.w));
+            newY = Math.max(0, Math.min(newY, canvasSize.h - el.h));
+
+            return {
+              ...el,
+              x: parseFloat(newX.toFixed(3)),
+              y: parseFloat(newY.toFixed(3)),
+            };
+          }),
+        );
+        setDragStart({ x: e.clientX, y: e.clientY });
+      } else if (isResizing && selectedId) {
+        const dx = toCm(e.clientX - dragStart.x);
+        const dy = toCm(e.clientY - dragStart.y);
+
+        setElements((p) =>
+          p.map((el) => {
+            if (el.id !== selectedId) return el;
+            let { x, y, w, h } = el;
+            const minSize = 0.1;
+
+            switch (resizeHandle) {
+              case 'se':
+                w = Math.max(minSize, Math.min(w + dx, canvasSize.w - x));
+                h = Math.max(minSize, Math.min(h + dy, canvasSize.h - y));
+                break;
+              case 'sw':
+                const maxW_sw = x + w;
+                w = Math.max(minSize, Math.min(w - dx, maxW_sw));
+                if (w !== minSize && w !== maxW_sw) x += dx;
+                else if (w === maxW_sw) x = 0;
+                h = Math.max(minSize, Math.min(h + dy, canvasSize.h - y));
+                break;
+              case 'ne':
+                w = Math.max(minSize, Math.min(w + dx, canvasSize.w - x));
+                const maxH_ne = y + h;
+                h = Math.max(minSize, Math.min(h - dy, maxH_ne));
+                if (h !== minSize && h !== maxH_ne) y += dy;
+                else if (h === maxH_ne) y = 0;
+                break;
+              case 'nw':
+                const maxW_nw = x + w;
+                const maxH_nw = y + h;
+                w = Math.max(minSize, Math.min(w - dx, maxW_nw));
+                h = Math.max(minSize, Math.min(h - dy, maxH_nw));
+                if (w !== minSize && w !== maxW_nw) x += dx;
+                else if (w === maxW_nw) x = 0;
+                if (h !== minSize && h !== maxH_nw) y += dy;
+                else if (h === maxH_nw) y = 0;
+                break;
+              default:
+                break;
+            }
+
+            return {
+              ...el,
+              x: parseFloat(x.toFixed(3)),
+              y: parseFloat(y.toFixed(3)),
+              w: parseFloat(w.toFixed(3)),
+              h: parseFloat(h.toFixed(3)),
+            };
+          }),
         );
         setDragStart({ x: e.clientX, y: e.clientY });
       }
     },
-    [isDragging, selectedId, dragStart, toCm, getCanvasCm],
+    [
+      isDragging,
+      isResizing,
+      resizeHandle,
+      selectedId,
+      dragStart,
+      toCm,
+      getCanvasCm,
+    ],
   );
   const handleCanvasClick = useCallback(
     (e) => {
@@ -517,11 +659,26 @@ export default function CanvaPrintModule() {
       e.stopPropagation();
       setSelectedId(id);
       setIsDragging(true);
+      setIsResizing(false);
       setDragStart({ x: e.clientX, y: e.clientY });
     },
     [activeTool],
   );
-  const handleMouseUp = () => setIsDragging(false);
+  const handleResizeDown = useCallback((e, id, handle) => {
+    e.stopPropagation();
+    e.preventDefault();
+    setSelectedId(id);
+    setIsResizing(true);
+    setIsDragging(false);
+    setResizeHandle(handle);
+    setDragStart({ x: e.clientX, y: e.clientY });
+  }, []);
+
+  const handleMouseUp = () => {
+    setIsDragging(false);
+    setIsResizing(false);
+    setResizeHandle(null);
+  };
   const handleElDblClick = useCallback((e, el) => {
     e.stopPropagation();
     if (el.type === 'text') {
@@ -586,6 +743,12 @@ export default function CanvaPrintModule() {
         break;
       case 'paste':
         doPaste();
+        break;
+      case 'print':
+        handlePrint();
+        break;
+      case 'settings':
+        setModal('settings');
         break;
       default:
         setActiveTool((p) => (p === id ? 'select' : id));
@@ -662,9 +825,9 @@ export default function CanvaPrintModule() {
       </div>
 
       <div className="cpm-toolbar-labels">
-        <span style={{ width: 196 }}>File</span>
+        <span style={{ width: 224 }}>File</span>
         <span className="cpm-tl-sep" />
-        <span style={{ width: 120 }}>Clipboard</span>
+        <span style={{ width: 104 }}>Clipboard</span>
         <span className="cpm-tl-sep" />
         <span>Drawing tools</span>
       </div>
@@ -721,6 +884,9 @@ export default function CanvaPrintModule() {
                   isSelected={selectedId === el.id}
                   isEditing={editingId === el.id}
                   onMouseDown={(e) => handleElMouseDown(e, el.id)}
+                  onResizeDown={(e, handle) =>
+                    handleResizeDown(e, el.id, handle)
+                  }
                   onDblClick={(e) => handleElDblClick(e, el)}
                   onTextBlur={(e) => handleTextBlur(e, el.id)}
                   qrValue={getQrFinalValue(el)}
@@ -904,6 +1070,79 @@ export default function CanvaPrintModule() {
               }}
             >
               Generate QR Code
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {modal === 'settings' && (
+        <Modal title="Printer Settings" onClose={() => setModal(null)}>
+          <div className="cpm-field-row">
+            <label>Printer IP</label>
+            <input
+              className="cpm-input"
+              value={printerConfig.printer_ip}
+              onChange={(e) =>
+                setPrinterConfig({
+                  ...printerConfig,
+                  printer_ip: e.target.value,
+                })
+              }
+            />
+          </div>
+          <div className="cpm-field-row">
+            <label>Printer Port</label>
+            <input
+              type="number"
+              className="cpm-input"
+              value={printerConfig.printer_port}
+              onChange={(e) =>
+                setPrinterConfig({
+                  ...printerConfig,
+                  printer_port: parseInt(e.target.value) || 0,
+                })
+              }
+            />
+          </div>
+          <div style={{ marginTop: '15px' }}>
+            <button
+              className="cpm-btn cpm-btn-ghost"
+              style={{ width: '100%', marginBottom: '10px' }}
+              onClick={async () => {
+                const t = toast.loading('Testing connection...');
+                try {
+                  const res = await window.electron.invoke(
+                    'test-printer-connection',
+                    printerConfig,
+                  );
+                  if (res.success) {
+                    toast.success('Connection successful!', { id: t });
+                  } else {
+                    toast.error(`Connection failed: ${res.error}`, { id: t });
+                  }
+                } catch (err) {
+                  toast.error(`Error: ${err.message}`, { id: t });
+                }
+              }}
+            >
+              Test Connection
+            </button>
+          </div>
+          <p style={{ fontSize: '11px', color: '#888', fontStyle: 'italic' }}>
+            Ensure your computer is on the same network as the printer.
+          </p>
+          <div className="cpm-modal-actions">
+            <button
+              className="cpm-btn cpm-btn-primary"
+              onClick={async () => {
+                if (window.electron && window.electron.savePrinterConfig) {
+                  await window.electron.savePrinterConfig(printerConfig);
+                  toast.success('Settings saved');
+                }
+                setModal(null);
+              }}
+            >
+              Save & Close
             </button>
           </div>
         </Modal>
@@ -1170,7 +1409,9 @@ function CanvasEl({
   zoom,
   isSelected,
   isEditing,
+  isResizing,
   onMouseDown,
+  onResizeDown,
   onDblClick,
   onTextBlur,
   qrValue,
@@ -1182,7 +1423,7 @@ function CanvasEl({
     top: el.y * CP,
     width: el.w * CP,
     height: el.h * CP,
-    cursor: isSelected ? 'grab' : 'default',
+    cursor: isResizing ? 'grabbing' : isSelected ? 'grab' : 'default',
     boxSizing: 'border-box',
     userSelect: 'none',
   };
@@ -1270,10 +1511,26 @@ function CanvasEl({
       )}
       {isSelected && (
         <>
-          <span className="cpm-handle" style={{ top: -4, left: -4 }} />
-          <span className="cpm-handle" style={{ top: -4, right: -4 }} />
-          <span className="cpm-handle" style={{ bottom: -4, left: -4 }} />
-          <span className="cpm-handle" style={{ bottom: -4, right: -4 }} />
+          <span
+            className="cpm-handle nw"
+            onMouseDown={(e) => onResizeDown(e, 'nw')}
+            style={{ top: -4, left: -4, cursor: 'nw-resize' }}
+          />
+          <span
+            className="cpm-handle ne"
+            onMouseDown={(e) => onResizeDown(e, 'ne')}
+            style={{ top: -4, right: -4, cursor: 'ne-resize' }}
+          />
+          <span
+            className="cpm-handle sw"
+            onMouseDown={(e) => onResizeDown(e, 'sw')}
+            style={{ bottom: -4, left: -4, cursor: 'sw-resize' }}
+          />
+          <span
+            className="cpm-handle se"
+            onMouseDown={(e) => onResizeDown(e, 'se')}
+            style={{ bottom: -4, right: -4, cursor: 'se-resize' }}
+          />
         </>
       )}
     </div>

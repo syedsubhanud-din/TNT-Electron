@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """
 Sojet Printer TCP-JSON Client - All protocol actions
-IP: 172.16.0.55, Port: 9944
+IP: 192.168.2.22, Port: 9944
 """
 
 import socket
@@ -12,8 +12,8 @@ from typing import Dict, List, Optional, Any
 
 class SojetClient:
     """Client for all Sojet printer TCP-JSON protocol actions."""
-    
-    def __init__(self, host: str = "172.16.0.55", port: int = 9944, timeout: int = 10):
+
+    def __init__(self, host: str = "192.168.2.22", port: int = 9944, timeout: int = 10):
         self.host = host
         self.port = port
         self.timeout = timeout

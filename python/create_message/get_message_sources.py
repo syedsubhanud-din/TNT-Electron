@@ -10,7 +10,7 @@ import sys
 import json
 from sojet_client import SojetClient
 
-PRINTER_IP = "172.16.0.55"
+PRINTER_IP = "192.168.2.22"
 PRINTER_PORT = 9944
 
 

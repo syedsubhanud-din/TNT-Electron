@@ -2,7 +2,7 @@ import socket
 import json
 import time
 
-printer_ip = "172.16.0.55"
+printer_ip = "192.168.2.22"
 port = 9944
 
 # Get message details from user
@@ -34,7 +34,7 @@ def send_command(socket_obj, command_dict):
     cmd_str = json.dumps(command_dict) + '\r\n'
     print(f"[INFO] Sending: {cmd_str.strip()}")
     socket_obj.sendall(cmd_str.encode('utf-8'))
-    
+
     try:
         socket_obj.settimeout(5)
         response = socket_obj.recv(4096)
@@ -64,15 +64,15 @@ try:
         }
     }
     source_response = send_command(s, source_cmd)
-    
+
     if not source_response or source_response.get("status") != "ok":
         print("[ERROR] Failed to create source!")
         exit(1)
-    
+
     source_id = source_response.get("id")
     print(f"[SUCCESS] Source created with ID: {source_id}")
     time.sleep(1)
-    
+
     # Step 2: Create a text object
     print("\n[STEP 2] Creating text object...")
     object_cmd = {
@@ -108,15 +108,15 @@ try:
         ]
     }
     object_response = send_command(s, object_cmd)
-    
+
     if not object_response or object_response.get("status") != "ok":
         print("[ERROR] Failed to create object!")
         exit(1)
-    
+
     object_id = object_response.get("id")
     print(f"[SUCCESS] Object created with ID: {object_id}")
     time.sleep(1)
-    
+
     # Step 3: Create a message
     print("\n[STEP 3] Creating message...")
     message_cmd = {
@@ -162,15 +162,15 @@ try:
         ]
     }
     message_response = send_command(s, message_cmd)
-    
+
     if not message_response or message_response.get("status") != "ok":
         print("[ERROR] Failed to create message!")
         exit(1)
-    
+
     message_id = message_response.get("id")
     print(f"[SUCCESS] Message created with ID: {message_id}")
     print(f"[SUCCESS] Message name: '{message_name}'")
-    
+
     # Step 4: Start printing the new message
     print("\n[STEP 4] Starting print with new message...")
     print_cmd = {
@@ -182,12 +182,12 @@ try:
         }
     }
     print_response = send_command(s, print_cmd)
-    
+
     if print_response and print_response.get("status") == "ok":
         print("[SUCCESS] Print job started!")
     else:
         print("[INFO] Check printer status - it may already be printing or require manual start")
-    
+
     print("\n[COMPLETED] Message has been created and is ready to print!")
     print(f"[INFO] Message name: '{message_name}'")
     print(f"[INFO] Content: {message_content}")

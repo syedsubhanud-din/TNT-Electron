@@ -21,7 +21,7 @@ except ImportError:
     PIL_AVAILABLE = False
     exit(1)
 
-printer_ip = "172.16.0.55"
+printer_ip = "192.168.2.22"
 port = 9944
 
 def send_command(socket_obj, command_dict):
@@ -29,7 +29,7 @@ def send_command(socket_obj, command_dict):
     cmd_str = json.dumps(command_dict) + '\r\n'
     print(f"[INFO] Sending command to: {command_dict.get('path', 'unknown')}")
     socket_obj.sendall(cmd_str.encode('utf-8'))
-    
+
     try:
         socket_obj.settimeout(5)
         response = socket_obj.recv(4096)
@@ -50,12 +50,12 @@ def generate_barcode_image(product_id, barcode_type='code128'):
     try:
         barcode_class = barcode.get_barcode_class(barcode_type)
         barcode_instance = barcode_class(product_id, writer=ImageWriter())
-        
+
         # Save to bytes
         buf = io.BytesIO()
         barcode_instance.write(buf)
         buf.seek(0)
-        
+
         # Convert to BMP
         img = Image.open(buf)
         bmp_buf = io.BytesIO()
@@ -122,7 +122,7 @@ s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
 try:
     s.connect((printer_ip, port))
     print("[SUCCESS] Connected to printer!")
-    
+
     # Step 1: Upload barcode image
     print("\n[STEP 1] Uploading barcode image...")
     upload_cmd = {
@@ -134,14 +134,14 @@ try:
         "content": barcode_b64
     }
     upload_response = send_command(s, upload_cmd)
-    
+
     if not upload_response or upload_response.get("status") == "error":
         print("[ERROR] Failed to upload barcode image!")
         exit(1)
-    
+
     print(f"[SUCCESS] Barcode image uploaded: {barcode_image_name}")
     time.sleep(1)
-    
+
     # Step 2: Create text source for product description
     print("\n[STEP 2] Creating text source for product description...")
     text_source_cmd = {
@@ -155,15 +155,15 @@ try:
         }
     }
     text_source_response = send_command(s, text_source_cmd)
-    
+
     if not text_source_response or text_source_response.get("status") != "ok":
         print("[ERROR] Failed to create text source!")
         exit(1)
-    
+
     text_source_id = text_source_response.get("id")
     print(f"[SUCCESS] Text source created with ID: {text_source_id}")
     time.sleep(1)
-    
+
     # Step 3: Create image source for barcode
     print("\n[STEP 3] Creating image source for barcode...")
     image_source_cmd = {
@@ -177,15 +177,15 @@ try:
         }
     }
     image_source_response = send_command(s, image_source_cmd)
-    
+
     if not image_source_response or image_source_response.get("status") != "ok":
         print("[ERROR] Failed to create image source!")
         exit(1)
-    
+
     image_source_id = image_source_response.get("id")
     print(f"[SUCCESS] Image source created with ID: {image_source_id}")
     time.sleep(1)
-    
+
     # Step 4: Create text object
     print("\n[STEP 4] Creating text object...")
     text_object_cmd = {
@@ -221,15 +221,15 @@ try:
         ]
     }
     text_object_response = send_command(s, text_object_cmd)
-    
+
     if not text_object_response or text_object_response.get("status") != "ok":
         print("[ERROR] Failed to create text object!")
         exit(1)
-    
+
     text_object_id = text_object_response.get("id")
     print(f"[SUCCESS] Text object created with ID: {text_object_id}")
     time.sleep(1)
-    
+
     # Step 5: Create image object for barcode
     print("\n[STEP 5] Creating image object for barcode...")
     image_object_cmd = {
@@ -265,15 +265,15 @@ try:
         ]
     }
     image_object_response = send_command(s, image_object_cmd)
-    
+
     if not image_object_response or image_object_response.get("status") != "ok":
         print("[ERROR] Failed to create image object!")
         exit(1)
-    
+
     image_object_id = image_object_response.get("id")
     print(f"[SUCCESS] Image object created with ID: {image_object_id}")
     time.sleep(1)
-    
+
     # Step 6: Create message with both objects
     print("\n[STEP 6] Creating message...")
     message_cmd = {
@@ -323,15 +323,15 @@ try:
         ]
     }
     message_response = send_command(s, message_cmd)
-    
+
     if not message_response or message_response.get("status") != "ok":
         print("[ERROR] Failed to create message!")
         exit(1)
-    
+
     message_id = message_response.get("id")
     print(f"[SUCCESS] Message created with ID: {message_id}")
     time.sleep(1)
-    
+
     # Step 7: Start printing
     print("\n[STEP 7] Starting print job...")
     print_cmd = {
@@ -343,12 +343,12 @@ try:
         }
     }
     print_response = send_command(s, print_cmd)
-    
+
     if print_response and print_response.get("status") == "ok":
         print(f"[SUCCESS] Print job started!")
     else:
         print("[INFO] Message created but print may require manual start or engine may already be running")
-    
+
     print("\n" + "=" * 70)
     print("COMPLETED SUCCESSFULLY!")
     print("=" * 70)

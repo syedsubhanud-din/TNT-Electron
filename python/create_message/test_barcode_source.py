@@ -17,7 +17,7 @@ except ImportError:
     print("Install: pip install qrcode pillow")
     exit(1)
 
-PRINTER_IP = "172.16.0.55"
+PRINTER_IP = "192.168.2.22"
 PRINTER_PORT = 9944
 
 def send(s, cmd):

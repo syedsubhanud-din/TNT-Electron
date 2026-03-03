@@ -13,7 +13,7 @@ This script demonstrates the correct flow: Source → Object (and optionally Mes
 import sys
 from sojet_client import SojetClient
 
-DEFAULT_IP = "172.16.0.55"
+DEFAULT_IP = "192.168.2.22"
 DEFAULT_PORT = 9944
 
 # Default text object style (from protocol)
