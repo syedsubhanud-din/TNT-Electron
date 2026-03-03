@@ -9,7 +9,8 @@ import sys
 PRINTER_IP = "192.168.2.22"
 PRINTER_PORT = 9944
 # Scale factor: cm to printer dots
-# Based on working payload: 1.8cm -> 280 dots => 155.5 dots/cm (approx 400 DPI)
+# Based on working payload: 1.8cm -> 280 dots => 155.56 dots/cm (approx 400 DPI)
+# Using 190 for compatibility, but can be adjusted if positioning is off
 SCALE = 190
 
 def send_command(s, cmd):
@@ -82,11 +83,33 @@ def main():
         source_details = [] # Store full source info for the final structure
         created_objects = [] # Store full object info
 
-        # --- STEP 1: CREATE SOURCES (text & clock only — barcodes do NOT get their own source) ---
+        # Build element lookup for barcode source resolution
+        el_by_id = {e["id"]: e for e in elements}
+
+        # --- STEP 1: CREATE SOURCES ---
+        # Text & clock get sources; barcodes with static qrText (no linked sources) get one too
         print(f"Creating sources for {len(elements)} elements...")
         for el in elements:
-            # Barcodes reference text sources; they never get their own source entry
             if el["type"] == "barcode":
+                # Create static text source only when barcode has qrText and NO linked sources
+                sids = el.get("sourceElementIds", [])
+                qr_text = el.get("qrText", "")
+                if not sids and qr_text:
+                    src_payload = {
+                        "request_type": "post", "path": "/data/source", "hash": int(time.time()),
+                        "type": "text",
+                        "name": f"qr_{el.get('id', '')}",
+                        "attribute": {"content": qr_text, "exported": False, "limit_switch": False, "page": 0}
+                    }
+                    r = send_command(s, src_payload)
+                    if r.get("status") == "ok":
+                        source_map[f"barcode_static_{el['id']}"] = r["id"]
+                        source_details.append({
+                            "type": "text", "id": r["id"], "name": src_payload["name"],
+                            "attribute": src_payload["attribute"]
+                        })
+                        print(f"  [OK] Static QR source for '{el['id']}' created (ID: {r['id']})")
+                    time.sleep(0.05)
                 continue
 
             src_type = "date" if el["type"] == "clock" else "text"
@@ -147,18 +170,27 @@ def main():
 
         # --- STEP 2: CREATE OBJECTS ---
         print("Creating objects...")
-        DOT_LIMIT = 300
+        # Use canvas size for limits instead of hardcoded DOT_LIMIT
+        canvas_dot_w = int(canvas_w * SCALE)
+        canvas_dot_h = int(canvas_h * SCALE)
+        DOT_LIMIT_X = canvas_dot_w
+        DOT_LIMIT_Y = canvas_dot_h
+        
         for el in elements:
-            x = max(0, min(int(el["x"] * SCALE), DOT_LIMIT))
-            y = max(0, min(int(el["y"] * SCALE), DOT_LIMIT))
+            # Scale coordinates properly - ensure they're within canvas bounds
+            x = max(0, min(int(round(el["x"] * SCALE)), DOT_LIMIT_X))
+            y = max(0, min(int(round(el["y"] * SCALE)), DOT_LIMIT_Y))
 
             # Clamp width and height so they don't exceed remaining space
-            w = max(1, min(int(el["w"] * SCALE), DOT_LIMIT - x))
-            h = max(1, min(int(el["h"] * SCALE), DOT_LIMIT - y))
+            w = max(1, min(int(round(el["w"] * SCALE)), DOT_LIMIT_X - x))
+            h = max(1, min(int(round(el["h"] * SCALE)), DOT_LIMIT_Y - y))
 
             obj_type = el["type"]
-            if obj_type not in ["text", "barcode"]:
-                continue # Skip shapes/images for now as per current printer focus
+            if obj_type not in ["text", "barcode", "clock"]:
+                continue  # Skip shapes/images for now as per current printer focus
+
+            # Clock renders as text object with date source
+            render_type = "text" if obj_type == "clock" else obj_type
 
             # Default premium style matching your example
             style = {
@@ -173,7 +205,7 @@ def main():
 
             obj_attribute = {
                 "locked": False,
-                "lock_aspect_ratio": (obj_type == "text"),
+                "lock_aspect_ratio": (render_type == "text"),
                 "relative_resize": False,
                 "enabled": True,
                 "page": 0
@@ -181,7 +213,7 @@ def main():
 
             source_list = []
 
-            if obj_type == "text":
+            if render_type == "text":
                 fs = int(el.get("fontSize", 11) * 4) # Adjusting font size mapping
                 style.update({
                     "font_style": f"ttf-OCR_B-r*nnn*-{fs}-{fs}-UTF-8",
@@ -191,8 +223,9 @@ def main():
                     "text_skewx": -0.25,
                     "fh_ratio": 0, "fw_ratio": 0
                 })
+                src_type_for_obj = "date" if obj_type == "clock" else "text"
                 if el["id"] in source_map:
-                    source_list.append({"type": "text", "id": source_map[el["id"]]})
+                    source_list.append({"type": src_type_for_obj, "id": source_map[el["id"]]})
 
             elif obj_type == "barcode":
                 # Barcode style exactly matching the working printer payload
@@ -216,16 +249,21 @@ def main():
                     "fast_encoding": False
                 })
 
-                # Build barcode source_list from explicitly linked sources
+                # Build barcode source_list from explicitly linked sources or static qrText
                 sids = el.get("sourceElementIds", [])
+                static_key = f"barcode_static_{el['id']}"
                 if sids:
-                    # Use specifically linked text elements
+                    # Use specifically linked text/clock elements
                     for sid in sids:
                         if sid in source_map:
-                            src_type = "date" if elements[next((i for i, e in enumerate(elements) if e["id"] == sid), -1)]["type"] == "clock" else "text"
+                            src_el = el_by_id.get(sid)
+                            src_type = "date" if src_el and src_el.get("type") == "clock" else "text"
                             source_list.append({"type": src_type, "id": source_map[sid]})
+                elif static_key in source_map:
+                    # Static qrText source created in STEP 1
+                    source_list.append({"type": "text", "id": source_map[static_key]})
                 else:
-                    # No explicit links: auto-link ALL text/date sources (fallback)
+                    # No links and no static text: fallback to all sources (legacy)
                     for src in source_details:
                         source_list.append({"type": src["type"], "id": src["id"]})
 
@@ -234,7 +272,7 @@ def main():
                 "request_type": "post",
                 "path": "/data/object",
                 "hash": int(time.time()),
-                "type": obj_type,
+                "type": render_type,
                 "name": el.get("id", f"obj_{int(time.time())}"),
                 "attribute": obj_attribute,
                 "style": style,
@@ -245,7 +283,7 @@ def main():
             if r.get("status") == "ok":
                 obj_id = r["id"]
                 created_objects.append({
-                    "type": obj_type,
+                    "type": render_type,
                     "name": obj_payload["name"],
                     "id": obj_id,
                     "attribute": obj_attribute,
@@ -288,8 +326,8 @@ def main():
                 "print_log": False,
                 "printdata_pref": {"print_prefs": print_prefs},
                 "fixed_boundary": False,
-                "fixed_height": 300,
-                "fixed_width": 300,
+                "fixed_height": fixed_h,
+                "fixed_width": fixed_w,
                 "page_num": 1
             },
             "style": {

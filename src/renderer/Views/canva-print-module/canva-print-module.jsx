@@ -293,8 +293,8 @@ export default function CanvaPrintModule() {
   const [resizeHandle, setResizeHandle] = useState(null);
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
-  const [zoom, setZoom] = useState(12);
-  const [canvasSize] = useState({ w: 300 / 190, h: 300 / 190 });
+  const [zoom, setZoom] = useState(4);
+  const [canvasSize] = useState({ w: 10, h: 300 / 190 });
   const [printerConfig, setPrinterConfig] = useState({
     printer_ip: '192.168.2.22',
     printer_port: 9944,
@@ -320,7 +320,12 @@ export default function CanvaPrintModule() {
       if (el.type !== 'barcode') return '';
       if (el.sourceElementIds && el.sourceElementIds.length > 0) {
         return el.sourceElementIds
-          .map((id) => elements.find((e) => e.id === id)?.content || '')
+          .map((id) => {
+            const src = elements.find((e) => e.id === id);
+            if (!src) return '';
+            if (src.type === 'clock') return new Date().toLocaleTimeString();
+            return src.content || '';
+          })
           .filter((t) => t.length > 0)
           .join('');
       }
@@ -349,38 +354,6 @@ export default function CanvaPrintModule() {
     };
     loadConfig();
   }, []);
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handler = (e) => {
-      if (editingId) return;
-      const tag = document.activeElement?.tagName;
-      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
-
-      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
-        e.preventDefault();
-        doDelete();
-      }
-      if (e.ctrlKey && e.key === 'c') {
-        e.preventDefault();
-        doCopy();
-      }
-      if (e.ctrlKey && e.key === 'x') {
-        e.preventDefault();
-        doCut();
-      }
-      if (e.ctrlKey && e.key === 'v') {
-        e.preventDefault();
-        doPaste();
-      }
-      if (e.key === 'Escape') {
-        setActiveTool('select');
-        setSelectedId(null);
-      }
-    };
-    window.addEventListener('keydown', handler);
-    return () => window.removeEventListener('keydown', handler);
-  }, [editingId, selectedId, clipboard, elements]);
 
   // Listener for re-opening QR content modal from PropsPanel
   useEffect(() => {
@@ -475,6 +448,38 @@ export default function CanvaPrintModule() {
     setSelectedId(el.id);
   }, [clipboard]);
 
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handler = (e) => {
+      if (editingId) return;
+      const tag = document.activeElement?.tagName;
+      if (tag === 'INPUT' || tag === 'TEXTAREA') return;
+
+      if ((e.key === 'Delete' || e.key === 'Backspace') && selectedId) {
+        e.preventDefault();
+        doDelete();
+      }
+      if (e.ctrlKey && e.key === 'c') {
+        e.preventDefault();
+        doCopy();
+      }
+      if (e.ctrlKey && e.key === 'x') {
+        e.preventDefault();
+        doCut();
+      }
+      if (e.ctrlKey && e.key === 'v') {
+        e.preventDefault();
+        doPaste();
+      }
+      if (e.key === 'Escape') {
+        setActiveTool('select');
+        setSelectedId(null);
+      }
+    };
+    window.addEventListener('keydown', handler);
+    return () => window.removeEventListener('keydown', handler);
+  }, [editingId, selectedId, clipboard, elements, doDelete, doCopy, doCut, doPaste]);
+
   const handlePrint = async () => {
     if (elements.length === 0) {
       toast.error('Canvas is empty');
@@ -483,7 +488,10 @@ export default function CanvaPrintModule() {
 
     const loadingToast = toast.loading('Sending to printer...');
     try {
-      const payload = JSON.stringify({ elements });
+      const payload = JSON.stringify({
+        elements,
+        canvasSize: { w: canvasSize.w, h: canvasSize.h },
+      });
       const args = [
         '--payload',
         payload,
@@ -755,7 +763,7 @@ export default function CanvaPrintModule() {
     }
   };
 
-  const zoomIn = () => setZoom((z) => Math.min(z + 0.5, 8));
+  const zoomIn = () => setZoom((z) => Math.min(z + 0.5, 12));
   const zoomOut = () => setZoom((z) => Math.max(z - 0.5, 0.5));
 
   const isDrawMode = DRAW_TOOLS.includes(activeTool);
