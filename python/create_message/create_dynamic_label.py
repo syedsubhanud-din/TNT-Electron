@@ -114,10 +114,41 @@ def main():
         print(f"Creating sources for {len(elements)} elements...")
         for el in elements:
             if el["type"] == "barcode":
-                # Create static text source only when barcode has qrText and NO linked sources
                 sids = el.get("sourceElementIds", [])
                 qr_text = el.get("qrText", "")
-                if not sids and qr_text:
+                if sids:
+                    # Build combined barcode value with prefixes 01, 10, 17
+                    prefixes = ['01', '10', '17']
+                    combined_value = ''
+                    for idx, sid in enumerate(sids):
+                        src_el = el_by_id.get(sid)
+                        if src_el:
+                            value = src_el.get("content", "")
+                            # Remove label prefix before colon (e.g. "GTIN:08964001713210" -> "08964001713210")
+                            if ':' in value:
+                                value = value.split(':', 1)[1]
+                            # Remove dashes
+                            value = value.replace('-', '')
+                            # Add prefix based on position
+                            prefix = prefixes[idx] if idx < len(prefixes) else ''
+                            combined_value += prefix + value
+                    src_payload = {
+                        "request_type": "post", "path": "/data/source", "hash": int(time.time()),
+                        "type": "text",
+                        "name": f"qr_combined_{el.get('id', '')}",
+                        "attribute": {"content": combined_value, "exported": False, "limit_switch": False, "page": 0}
+                    }
+                    r = send_command(s, src_payload)
+                    if r.get("status") == "ok":
+                        source_map[f"barcode_combined_{el['id']}"] = r["id"]
+                        source_details.append({
+                            "type": "text", "id": r["id"], "name": src_payload["name"],
+                            "attribute": src_payload["attribute"]
+                        })
+                        print(f"  [OK] Combined barcode source for '{el['id']}' created (ID: {r['id']}), value: {combined_value}")
+                    time.sleep(0.05)
+                elif not sids and qr_text:
+                    # Create static text source when barcode has qrText and NO linked sources
                     src_payload = {
                         "request_type": "post", "path": "/data/source", "hash": int(time.time()),
                         "type": "text",
@@ -222,7 +253,7 @@ def main():
                 "x": x, "y": y, "w": w, "h": h,
                 "halign": 0, "valign": 0,
                 "pivot_x": 0, "pivot_y": 0, "scale_x": 1, "scale_y": 1,
-                "paint_style": "fill", "line_cap": "butt", "line_join": "miter",
+                # "paint_style": "fill", "line_cap": "butt", "line_join": "miter",
                 "line_width": 0, "line_miter": 1
             }
 
@@ -261,7 +292,7 @@ def main():
                     "extras": {"dm_size": 0, "gs1_gs_separator": False},
                     "data_type": "unicode",       # Required field from working payload
                     "text_margin": 3,
-                    "x_dimension": 7,
+                    "x_dimension": 11,
                     "bar_height": 200,
                     "quiet_zone": 0,
                     "paint_style": "fill",
@@ -277,16 +308,13 @@ def main():
                     "fast_encoding": False
                 })
 
-                # Build barcode source_list from explicitly linked sources or static qrText
+                # Build barcode source_list from combined source, static qrText, or fallback
                 sids = el.get("sourceElementIds", [])
+                combined_key = f"barcode_combined_{el['id']}"
                 static_key = f"barcode_static_{el['id']}"
-                if sids:
-                    # Use specifically linked text/clock elements
-                    for sid in sids:
-                        if sid in source_map:
-                            src_el = el_by_id.get(sid)
-                            src_type = "date" if src_el and src_el.get("type") == "clock" else "text"
-                            source_list.append({"type": src_type, "id": source_map[sid]})
+                if sids and combined_key in source_map:
+                    # Use the combined source with prefixes (01/10/17) created in STEP 1
+                    source_list.append({"type": "text", "id": source_map[combined_key]})
                 elif static_key in source_map:
                     # Static qrText source created in STEP 1
                     source_list.append({"type": "text", "id": source_map[static_key]})
