@@ -6,7 +6,7 @@ import time
 import sys
 
 # Constants for Sojet-style printers
-PRINTER_IP = "192.168.2.22"
+PRINTER_IP = "192.168.1.22"
 PRINTER_PORT = 9944
 # Scale factor: cm to printer dots
 # Based on working payload: 1.8cm -> 280 dots => 155.56 dots/cm (approx 400 DPI)
@@ -38,7 +38,7 @@ def main():
     parser.add_argument("--payload", help="JSON payload of elements from Canva")
     parser.add_argument("--name", help="Message name", default="")
     parser.add_argument("--print", action="store_true", help="Start printing immediately")
-    parser.add_argument("--ip", default="192.168.2.22", help="Printer IP address")
+    parser.add_argument("--ip", default="192.168.1.22", help="Printer IP address")
     parser.add_argument("--port", type=int, default=9944, help="Printer port")
     args = parser.parse_args()
 
@@ -61,9 +61,10 @@ def main():
         sys.exit(1)
 
     elements = data.get("elements", [])
-    # Canvas size from payload or defaults to 18x8cm
-    canvas_w = data.get("canvasSize", {}).get("w", 18.0)
-    canvas_h = data.get("canvasSize", {}).get("h", 8.0)
+    # Canvas size from payload - defaults to 10cm x (300/190)cm for fixed_width:1900, fixed_height:300
+    canvas_size = data.get("canvasSize", {})
+    canvas_w = canvas_size.get("w", 10.0)
+    canvas_h = canvas_size.get("h", 300.0 / SCALE)
 
     msg_name = args.name or f"MSG_{int(time.time() * 1000) % 10000:04d}"
 
@@ -74,8 +75,30 @@ def main():
     try:
         s.connect((printer_ip, printer_port))
         print("Connected successfully.")
+    except socket.timeout:
+        print(f"[ERROR] Connection timeout: Printer at {printer_ip}:{printer_port} did not respond within 5 seconds.")
+        print("Please check:")
+        print("  1. Printer is powered on and connected to network")
+        print("  2. IP address is correct")
+        print("  3. Printer port is correct (default: 9944)")
+        print("  4. Firewall is not blocking the connection")
+        sys.exit(1)
+    except ConnectionRefusedError:
+        print(f"[ERROR] Connection refused: Printer at {printer_ip}:{printer_port} actively refused the connection.")
+        print("This usually means:")
+        print("  1. Printer is not running or not ready")
+        print("  2. Wrong IP address or port")
+        print("  3. Printer service is not listening on this port")
+        print("  4. Network connectivity issue")
+        sys.exit(1)
+    except socket.gaierror as e:
+        print(f"[ERROR] DNS/Hostname resolution failed: {e}")
+        print(f"Could not resolve IP address: {printer_ip}")
+        sys.exit(1)
     except Exception as e:
-        print(f"Error connecting to printer: {e}")
+        print(f"[ERROR] Connection error: {e}")
+        print(f"Failed to connect to printer at {printer_ip}:{printer_port}")
+        print("Please verify printer settings and network connectivity.")
         sys.exit(1)
 
     try:
@@ -175,7 +198,7 @@ def main():
         canvas_dot_h = int(canvas_h * SCALE)
         DOT_LIMIT_X = canvas_dot_w
         DOT_LIMIT_Y = canvas_dot_h
-        
+
         for el in elements:
             # Scale coordinates properly - ensure they're within canvas bounds
             x = max(0, min(int(round(el["x"] * SCALE)), DOT_LIMIT_X))
@@ -238,9 +261,14 @@ def main():
                     "extras": {"dm_size": 0, "gs1_gs_separator": False},
                     "data_type": "unicode",       # Required field from working payload
                     "text_margin": 3,
-                    "x_dimension": 14,
+                    "x_dimension": 7,
                     "bar_height": 200,
                     "quiet_zone": 0,
+                    "paint_style": "fill",
+                    "line_cap": "butt",
+                    "line_join": "miter",
+                    "line_width": 0,
+                    "line_miter": 0,
                     "bearer_bar_thickness": 0,
                     "gs1_nocheck": False,
                     "escape_seq": False,
@@ -310,9 +338,9 @@ def main():
             {"ff_margin": 0, "fr_margin": 0, "bf_margin": 0, "br_margin": 0, "continuous_print": False}
         ]
 
-        # Calculate printer bounds based on canvas size
-        fixed_w = int(canvas_w * SCALE)
-        fixed_h = int(canvas_h * SCALE)
+        # Calculate printer bounds - must match Untitled-1 format (fixed_width:1900, fixed_height:300)
+        fixed_w = int(round(canvas_w * SCALE))
+        fixed_h = int(round(canvas_h * SCALE))
 
         final_payload = {
             "request_type": "post",

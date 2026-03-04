@@ -19,7 +19,7 @@ except ImportError:
     print("[WARN] qrcode library not installed. Install with: pip install qrcode pillow")
     QRCODE_AVAILABLE = False
 
-printer_ip = "192.168.2.22"
+printer_ip = "192.168.1.22"
 port = 9944
 
 def send_command(socket_obj, command_dict):

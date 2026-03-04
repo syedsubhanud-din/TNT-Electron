@@ -249,7 +249,7 @@ ipcMain.handle('get-printer-config', async () => {
   } catch (error) {
     console.error('Error reading printer config:', error);
   }
-  return { printer_ip: '192.168.2.22', printer_port: 9944 };
+  return { printer_ip: '192.168.1.22', printer_port: 9944 };
 });
 
 ipcMain.handle('save-printer-config', async (_event, config) => {

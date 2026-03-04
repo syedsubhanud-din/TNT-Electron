@@ -269,7 +269,7 @@ function createElement(type, xCm, yCm) {
     case 'line':
       return { ...base, w: 4, h: 0.1, stroke: '#0d1b42', strokeW: 1.5 };
     case 'barcode':
-      return { ...base, w: 1.8, h: 1.8, qrText: '', sourceElementIds: [] };
+      return { ...base, w: 1.1, h: 1.1, qrText: '', sourceElementIds: [] };
     case 'clock':
       return { ...base, w: 4.5, h: 0.4, fontSize: 10, color: '#111111' };
     case 'table':
@@ -294,9 +294,9 @@ export default function CanvaPrintModule() {
   const [dragStart, setDragStart] = useState({ x: 0, y: 0 });
   const [mousePos, setMousePos] = useState({ x: 0, y: 0 });
   const [zoom, setZoom] = useState(4);
-  const [canvasSize] = useState({ w: 10, h: 300 / 190 });
+  const [canvasSize, setCanvasSize] = useState({ w: 10, h: 300 / 190 });
   const [printerConfig, setPrinterConfig] = useState({
-    printer_ip: '192.168.2.22',
+    printer_ip: '192.168.1.22',
     printer_port: 9944,
   });
 
@@ -381,9 +381,10 @@ export default function CanvaPrintModule() {
   };
   const doSave = useCallback(
     (name = 'Label') => {
-      const blob = new Blob([JSON.stringify({ elements }, null, 2)], {
-        type: 'application/json',
-      });
+      const blob = new Blob(
+        [JSON.stringify({ elements, canvasSize }, null, 2)],
+        { type: 'application/json' },
+      );
       const a = Object.assign(document.createElement('a'), {
         href: URL.createObjectURL(blob),
         download: `${name}.cpm.json`,
@@ -391,7 +392,7 @@ export default function CanvaPrintModule() {
       a.click();
       URL.revokeObjectURL(a.href);
     },
-    [elements],
+    [elements, canvasSize],
   );
   const doSaveAs = () => {
     setSaveAsName('MyLabel');
@@ -411,6 +412,7 @@ export default function CanvaPrintModule() {
         const data = JSON.parse(ev.target.result);
         if (data.elements) {
           setElements(data.elements);
+          if (data.canvasSize) setCanvasSize(data.canvasSize);
           setSelectedId(null);
         }
       } catch {
@@ -508,18 +510,40 @@ export default function CanvaPrintModule() {
           args,
         );
         console.log('Printer Output:', output);
-        if (output.includes('[OK]')) {
+        
+        // Check for specific error messages
+        if (output.includes('[ERROR]')) {
+          // Extract error message (first line after [ERROR])
+          const errorMatch = output.match(/\[ERROR\]([^\n]+)/);
+          const errorMsg = errorMatch 
+            ? errorMatch[1].trim() 
+            : 'Connection failed. Check printer settings.';
+          
+          toast.error(`Printer Error: ${errorMsg}`, {
+            id: loadingToast,
+            duration: 5000,
+          });
+        } else if (output.includes('[OK]')) {
           toast.success('Print job started!', { id: loadingToast });
         } else {
-          toast.error(`Printer error: ${output.slice(0, 100)}`, {
+          // Show full output for debugging
+          const errorPreview = output.length > 150 
+            ? output.slice(0, 150) + '...' 
+            : output;
+          toast.error(`Printer error: ${errorPreview}`, {
             id: loadingToast,
+            duration: 5000,
           });
         }
       } else {
         toast.success('Sent to printer (Dev Mode)', { id: loadingToast });
       }
     } catch (error) {
-      toast.error(`Error: ${error.message}`, { id: loadingToast });
+      const errorMsg = error.message || 'Unknown error occurred';
+      toast.error(`Error: ${errorMsg}`, { 
+        id: loadingToast,
+        duration: 5000,
+      });
       console.error('Print error:', error);
     }
   };
