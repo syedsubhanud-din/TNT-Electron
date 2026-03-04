@@ -319,12 +319,26 @@ export default function CanvaPrintModule() {
     (el) => {
       if (el.type !== 'barcode') return '';
       if (el.sourceElementIds && el.sourceElementIds.length > 0) {
+        const prefixes = ['01', '10', '17'];
         return el.sourceElementIds
-          .map((id) => {
+          .map((id, index) => {
             const src = elements.find((e) => e.id === id);
             if (!src) return '';
-            if (src.type === 'clock') return new Date().toLocaleTimeString();
-            return src.content || '';
+            let value = '';
+            if (src.type === 'clock') {
+              value = new Date().toLocaleTimeString();
+            } else {
+              value = src.content || '';
+            }
+            // Remove label prefix before colon (e.g. "GTIN:08964001713210" -> "08964001713210")
+            if (value.includes(':')) {
+              value = value.split(':').slice(1).join(':');
+            }
+            // Remove dashes
+            value = value.replace(/-/g, '');
+            // Add prefix based on selection order
+            const prefix = prefixes[index] || '';
+            return prefix + value;
           })
           .filter((t) => t.length > 0)
           .join('');
@@ -480,7 +494,16 @@ export default function CanvaPrintModule() {
     };
     window.addEventListener('keydown', handler);
     return () => window.removeEventListener('keydown', handler);
-  }, [editingId, selectedId, clipboard, elements, doDelete, doCopy, doCut, doPaste]);
+  }, [
+    editingId,
+    selectedId,
+    clipboard,
+    elements,
+    doDelete,
+    doCopy,
+    doCut,
+    doPaste,
+  ]);
 
   const handlePrint = async () => {
     if (elements.length === 0) {
@@ -510,15 +533,15 @@ export default function CanvaPrintModule() {
           args,
         );
         console.log('Printer Output:', output);
-        
+
         // Check for specific error messages
         if (output.includes('[ERROR]')) {
           // Extract error message (first line after [ERROR])
           const errorMatch = output.match(/\[ERROR\]([^\n]+)/);
-          const errorMsg = errorMatch 
-            ? errorMatch[1].trim() 
+          const errorMsg = errorMatch
+            ? errorMatch[1].trim()
             : 'Connection failed. Check printer settings.';
-          
+
           toast.error(`Printer Error: ${errorMsg}`, {
             id: loadingToast,
             duration: 5000,
@@ -527,9 +550,8 @@ export default function CanvaPrintModule() {
           toast.success('Print job started!', { id: loadingToast });
         } else {
           // Show full output for debugging
-          const errorPreview = output.length > 150 
-            ? output.slice(0, 150) + '...' 
-            : output;
+          const errorPreview =
+            output.length > 150 ? output.slice(0, 150) + '...' : output;
           toast.error(`Printer error: ${errorPreview}`, {
             id: loadingToast,
             duration: 5000,
@@ -540,7 +562,7 @@ export default function CanvaPrintModule() {
       }
     } catch (error) {
       const errorMsg = error.message || 'Unknown error occurred';
-      toast.error(`Error: ${errorMsg}`, { 
+      toast.error(`Error: ${errorMsg}`, {
         id: loadingToast,
         duration: 5000,
       });
@@ -1074,12 +1096,21 @@ export default function CanvaPrintModule() {
               <label>Resulting QR Content:</label>
               <div className="cpm-preview-box">
                 {qrSelectedSources.length > 0
-                  ? qrSelectedSources
-                      .map(
-                        (id) =>
-                          elements.find((e) => e.id === id)?.content || '',
-                      )
-                      .join('')
+                  ? (() => {
+                      const prefixes = ['01', '10', '17'];
+                      return qrSelectedSources
+                        .map((id, index) => {
+                          let value =
+                            elements.find((e) => e.id === id)?.content || '';
+                          if (value.includes(':')) {
+                            value = value.split(':').slice(1).join(':');
+                          }
+                          value = value.replace(/-/g, '');
+                          const prefix = prefixes[index] || '';
+                          return prefix + value;
+                        })
+                        .join('');
+                    })()
                   : editQrText || '(empty)'}
               </div>
             </div>
