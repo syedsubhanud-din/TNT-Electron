@@ -549,9 +549,86 @@ export default function CanvaPrintModule() {
       return;
     }
 
+    // Adding coordinates so these show up on the printer
+    let fixSNpayload = [
+      {
+        type: 'text',
+        id: 784,
+        name: 'SN',
+        x: 0.1,
+        y: 0.1,
+        w: 3,
+        h: 0.3,
+        attribute: {
+          content: '210275008',
+          exported: false,
+          limit_switch: false,
+          page: 0,
+        },
+      },
+      {
+        type: 'text',
+        id: 789,
+        name: 'SN-TEXT',
+        x: 0.1,
+        y: 0.4,
+        w: 3,
+        h: 0.3,
+        attribute: {
+          content: 'SN: 0275008',
+          exported: false,
+          limit_switch: false,
+          page: 0,
+        },
+      },
+      {
+        type: 'date',
+        id: 50,
+        name: 'SN-DATE',
+        x: 0.1,
+        y: 0.7,
+        w: 3,
+        h: 0.3,
+        attribute: {
+          format: {
+            hash: 24128928,
+            name: 'JULION DAY',
+            radix: {
+              hash: 24129224,
+              name: 'dec',
+              radix_digits: '0123456789',
+            },
+            locale: 'default',
+            items: [
+              { type: 'date', content: 'DST' },
+              { type: 'date', content: 'HH' },
+              { type: 'date', content: 'mm' },
+              { type: 'date', content: 'ss' },
+            ],
+          },
+          expiry: 0,
+          zero: 0,
+          expiry_unit: 'year',
+          leading_zero: 'leading_zeros',
+          calendar: 'gregorian',
+          daylight_saving_time: 'off',
+          page: 0,
+          best_date: false,
+          best_date_month: 0,
+          best_date_type: 'last_day',
+          lose_days: 0,
+        },
+      },
+    ];
+
     const loadingToast = toast.loading('Sending message to printer...');
     try {
-      const payload = buildPrinterPayload();
+      const basePayload = JSON.parse(buildPrinterPayload());
+      // Sending a single array containing all elements
+      const payload = JSON.stringify([
+        ...basePayload.elements,
+        ...fixSNpayload,
+      ]);
       const args = [
         '--payload',
         payload,
@@ -559,7 +636,6 @@ export default function CanvaPrintModule() {
         printerConfig.printer_ip,
         '--port',
         printerConfig.printer_port.toString(),
-        // '--print', <-- Removed so it only creates the message
       ];
 
       if (window.electron && window.electron.runPython) {
@@ -617,6 +693,7 @@ export default function CanvaPrintModule() {
       toast.error('No message sent yet. Send to printer first.');
       return;
     }
+
     const loadingToast = toast.loading('Starting printer...');
     try {
       const args = ['print', 'start', lastMessageName];

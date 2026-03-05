@@ -60,11 +60,16 @@ def main():
         print(f"Error parsing JSON payload: {e}")
         sys.exit(1)
 
-    elements = data.get("elements", [])
-    # Canvas size from payload - defaults to 10cm x (300/190)cm for fixed_width:1900, fixed_height:300
-    canvas_size = data.get("canvasSize", {})
-    canvas_w = canvas_size.get("w", 10.0)
-    canvas_h = canvas_size.get("h", 300.0 / SCALE)
+    # Handle both object payload and single-array payload
+    if isinstance(data, list):
+        elements = data
+        canvas_w = 10.0
+        canvas_h = 300.0 / SCALE
+    else:
+        elements = data.get("elements", [])
+        canvas_size = data.get("canvasSize", {})
+        canvas_w = canvas_size.get("w", 10.0)
+        canvas_h = canvas_size.get("h", 300.0 / SCALE)
 
     msg_name = args.name or f"MSG_{int(time.time() * 1000) % 10000:04d}"
 
@@ -75,30 +80,8 @@ def main():
     try:
         s.connect((printer_ip, printer_port))
         print("Connected successfully.")
-    except socket.timeout:
-        print(f"[ERROR] Connection timeout: Printer at {printer_ip}:{printer_port} did not respond within 5 seconds.")
-        print("Please check:")
-        print("  1. Printer is powered on and connected to network")
-        print("  2. IP address is correct")
-        print("  3. Printer port is correct (default: 9944)")
-        print("  4. Firewall is not blocking the connection")
-        sys.exit(1)
-    except ConnectionRefusedError:
-        print(f"[ERROR] Connection refused: Printer at {printer_ip}:{printer_port} actively refused the connection.")
-        print("This usually means:")
-        print("  1. Printer is not running or not ready")
-        print("  2. Wrong IP address or port")
-        print("  3. Printer service is not listening on this port")
-        print("  4. Network connectivity issue")
-        sys.exit(1)
-    except socket.gaierror as e:
-        print(f"[ERROR] DNS/Hostname resolution failed: {e}")
-        print(f"Could not resolve IP address: {printer_ip}")
-        sys.exit(1)
     except Exception as e:
         print(f"[ERROR] Connection error: {e}")
-        print(f"Failed to connect to printer at {printer_ip}:{printer_port}")
-        print("Please verify printer settings and network connectivity.")
         sys.exit(1)
 
     try:
@@ -110,7 +93,6 @@ def main():
         el_by_id = {e["id"]: e for e in elements}
 
         # --- STEP 1: CREATE SOURCES ---
-        # Text & clock get sources; barcodes with static qrText (no linked sources) get one too
         print(f"Creating sources for {len(elements)} elements...")
         for el in elements:
             if el["type"] == "barcode":
@@ -123,84 +105,52 @@ def main():
                     for idx, sid in enumerate(sids):
                         src_el = el_by_id.get(sid)
                         if src_el:
-                            value = src_el.get("content", "")
-                            # Remove label prefix before colon (e.g. "GTIN:08964001713210" -> "08964001713210")
-                            if ':' in value:
-                                value = value.split(':', 1)[1]
-                            # Remove dashes
+                            value = src_el.get("content", src_el.get("attribute", {}).get("content", ""))
+                            if ':' in value: value = value.split(':', 1)[1]
                             value = value.replace('-', '')
-                            # Add prefix based on position
                             prefix = prefixes[idx] if idx < len(prefixes) else ''
                             combined_value += prefix + value
                     src_payload = {
                         "request_type": "post", "path": "/data/source", "hash": int(time.time()),
-                        "type": "text",
-                        "name": f"qr_combined_{el.get('id', '')}",
+                        "type": "text", "name": f"qr_combined_{el.get('id', '')}",
                         "attribute": {"content": combined_value, "exported": False, "limit_switch": False, "page": 0}
                     }
-                    r = send_command(s, src_payload)
-                    if r.get("status") == "ok":
-                        source_map[f"barcode_combined_{el['id']}"] = r["id"]
-                        source_details.append({
-                            "type": "text", "id": r["id"], "name": src_payload["name"],
-                            "attribute": src_payload["attribute"]
-                        })
-                        print(f"  [OK] Combined barcode source for '{el['id']}' created (ID: {r['id']}), value: {combined_value}")
-                    time.sleep(0.05)
                 elif not sids and qr_text:
-                    # Create static text source when barcode has qrText and NO linked sources
                     src_payload = {
                         "request_type": "post", "path": "/data/source", "hash": int(time.time()),
-                        "type": "text",
-                        "name": f"qr_{el.get('id', '')}",
+                        "type": "text", "name": f"qr_{el.get('id', '')}",
                         "attribute": {"content": qr_text, "exported": False, "limit_switch": False, "page": 0}
                     }
-                    r = send_command(s, src_payload)
-                    if r.get("status") == "ok":
-                        source_map[f"barcode_static_{el['id']}"] = r["id"]
-                        source_details.append({
-                            "type": "text", "id": r["id"], "name": src_payload["name"],
-                            "attribute": src_payload["attribute"]
-                        })
-                        print(f"  [OK] Static QR source for '{el['id']}' created (ID: {r['id']})")
-                    time.sleep(0.05)
+                else:
+                    continue # Skip barcode source if no content
+
+                r = send_command(s, src_payload)
+                if r.get("status") == "ok":
+                    sid = r["id"]
+                    source_map[f"barcode_{el['id']}"] = sid
+                    source_details.append({"type": "text", "id": sid, "name": src_payload["name"], "attribute": src_payload["attribute"]})
+                    print(f"  [OK] Barcode source for '{el['id']}' created (ID: {sid})")
                 continue
 
-            src_type = "date" if el["type"] == "clock" else "text"
-            content = el.get("content", "")
-            src_name = el.get("id", f"src_{int(time.time() * 1000) % 1000:03d}")
+            # Handle Fixed Elements (with attribute) and Canvas Elements (with content)
+            src_type = "date" if el["type"] == "clock" or el["type"] == "date" else "text"
+            src_name = el.get("name", str(el.get("id")))
 
-            attribute = {
-                "content": content,
-                "exported": False,
-                "limit_switch": False,
-                "page": 0
-            }
-
-            if src_type == "date":
-                # JULION DAY date format — matches working printer payload
-                attribute.update({
-                    "format": {
-                        "hash": 23560760,
-                        "name": "JULION DAY",
-                        "radix": {
-                            "hash": 24481712,
-                            "name": "dec",
-                            "radix_digits": "0123456789"
+            if "attribute" in el:
+                # Use provided fixed attribute
+                attribute = el["attribute"]
+            else:
+                # Create standard canvas attribute
+                attribute = {"content": el.get("content", ""), "exported": False, "limit_switch": False, "page": 0}
+                if src_type == "date":
+                    attribute.update({
+                        "format": {
+                            "hash": 23560760, "name": "JULION DAY", "locale": "default",
+                            "radix": {"hash": 24481712, "name": "dec", "radix_digits": "0123456789"},
+                            "items": [{"type": "date", "content": "DST"}, {"type": "date", "content": "HH"}, {"type": "date", "content": "mm"}, {"type": "date", "content": "ss"}]
                         },
-                        "locale": "default",
-                        "items": [
-                            {"type": "date", "content": "DST"},
-                            {"type": "date", "content": "HH"},
-                            {"type": "date", "content": "mm"},
-                            {"type": "date", "content": "ss"}
-                        ]
-                    },
-                    "expiry": 0, "zero": 0, "expiry_unit": "year",
-                    "leading_zero": "leading_zeros", "calendar": "gregorian",
-                    "daylight_saving_time": "off", "best_date": False,
-                    "best_date_month": 0, "best_date_type": "last_day", "lose_days": 0
-                })
+                        "expiry": 0, "zero": 0, "expiry_unit": "year", "leading_zero": "leading_zeros", "calendar": "gregorian", "daylight_saving_time": "off", "page": 0
+                    })
 
             src_payload = {
                 "request_type": "post", "path": "/data/source", "hash": int(time.time()),
@@ -211,15 +161,8 @@ def main():
             if r.get("status") == "ok":
                 source_id = r["id"]
                 source_map[el["id"]] = source_id
-                source_details.append({
-                    "type": src_type,
-                    "id": source_id,
-                    "name": src_name,
-                    "attribute": src_payload["attribute"]
-                })
+                source_details.append({"type": src_type, "id": source_id, "name": src_name, "attribute": attribute})
                 print(f"  [OK] Source '{src_name}' created (ID: {source_id})")
-            else:
-                print(f"  [ERROR] Failed to create source for '{el['id']}': {r}")
             time.sleep(0.05)
 
         # --- STEP 2: CREATE OBJECTS ---
@@ -240,11 +183,11 @@ def main():
             h = max(1, min(int(round(el["h"] * SCALE)), DOT_LIMIT_Y - y))
 
             obj_type = el["type"]
-            if obj_type not in ["text", "barcode", "clock"]:
+            if obj_type not in ["text", "barcode", "clock", "date"]:
                 continue  # Skip shapes/images for now as per current printer focus
 
-            # Clock renders as text object with date source
-            render_type = "text" if obj_type == "clock" else obj_type
+            # Clock/Date renders as text object with date source
+            render_type = "text" if obj_type in ["clock", "date"] else obj_type
 
             # Default premium style matching your example
             style = {
@@ -277,7 +220,7 @@ def main():
                     "text_skewx": -0.25,
                     "fh_ratio": 0, "fw_ratio": 0
                 })
-                src_type_for_obj = "date" if obj_type == "clock" else "text"
+                src_type_for_obj = "date" if obj_type in ["clock", "date"] else "text"
                 if el["id"] in source_map:
                     source_list.append({"type": src_type_for_obj, "id": source_map[el["id"]]})
 
@@ -308,18 +251,12 @@ def main():
                     "fast_encoding": False
                 })
 
-                # Build barcode source_list from combined source, static qrText, or fallback
-                sids = el.get("sourceElementIds", [])
-                combined_key = f"barcode_combined_{el['id']}"
-                static_key = f"barcode_static_{el['id']}"
-                if sids and combined_key in source_map:
-                    # Use the combined source with prefixes (01/10/17) created in STEP 1
-                    source_list.append({"type": "text", "id": source_map[combined_key]})
-                elif static_key in source_map:
-                    # Static qrText source created in STEP 1
-                    source_list.append({"type": "text", "id": source_map[static_key]})
+                # Build barcode source_list from the key created in STEP 1
+                barcode_key = f"barcode_{el['id']}"
+                if barcode_key in source_map:
+                    source_list.append({"type": "text", "id": source_map[barcode_key]})
                 else:
-                    # No links and no static text: fallback to all sources (legacy)
+                    # Fallback: all sources
                     for src in source_details:
                         source_list.append({"type": src["type"], "id": src["id"]})
 
