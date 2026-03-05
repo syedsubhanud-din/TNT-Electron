@@ -164,6 +164,22 @@ const IcoPrint = () => (
     <rect x="6" y="14" width="12" height="8" />
   </S>
 );
+const IcoStop = () => (
+  <S>
+    <rect x="6" y="6" width="12" height="12" rx="1" fill="currentColor" />
+  </S>
+);
+const IcoPlay = () => (
+  <S>
+    <polygon points="6 3 20 12 6 21" fill="currentColor" />
+  </S>
+);
+const IcoEye = () => (
+  <S>
+    <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+    <circle cx="12" cy="12" r="3" />
+  </S>
+);
 const IcoSettings = () => (
   <S>
     <circle cx="12" cy="12" r="3" />
@@ -182,9 +198,21 @@ const TOOLBAR_GROUPS = [
       { id: 'open', Icon: IcoOpen, tip: 'Open (.json)' },
       { id: 'save', Icon: IcoSave, tip: 'Save' },
       { id: 'saveas', Icon: IcoSaveAs, tip: 'Save As…' },
-      { id: 'print', Icon: IcoPrint, tip: 'Send to Printer' },
       { id: 'settings', Icon: IcoSettings, tip: 'Printer Settings' },
       { id: 'delete', Icon: IcoDelete, tip: 'Delete Selected (Del)' },
+    ],
+  },
+  {
+    label: 'Printer Control',
+    tools: [
+      {
+        id: 'senddata',
+        Icon: IcoPrint,
+        tip: 'Send data to Printer (Create Message)',
+      },
+      { id: 'runprinter', Icon: IcoPlay, tip: 'Run Printer' },
+      { id: 'stopprinter', Icon: IcoStop, tip: 'Stop Printer' },
+      { id: 'viewdata', Icon: IcoEye, tip: 'View Raw JSON Data' },
     ],
   },
   {
@@ -301,10 +329,12 @@ export default function CanvaPrintModule() {
   });
 
   // modal states
-  const [modal, setModal] = useState(null); // 'new' | 'saveas' | 'editqr' | 'settings'
+  const [modal, setModal] = useState(null); // 'new' | 'saveas' | 'editqr' | 'settings' | 'viewdata'
   const [saveAsName, setSaveAsName] = useState('MyLabel');
   const [editQrText, setEditQrText] = useState('');
   const [qrSelectedSources, setQrSelectedSources] = useState([]);
+  const [lastMessageName, setLastMessageName] = useState(null);
+  const [printerDataPreview, setPrinterDataPreview] = useState(null);
 
   const canvasRef = useRef(null);
   const fileInputRef = useRef(null);
@@ -505,18 +535,23 @@ export default function CanvaPrintModule() {
     doPaste,
   ]);
 
-  const handlePrint = async () => {
+  // Build the payload that will be sent to the printer (reusable)
+  const buildPrinterPayload = useCallback(() => {
+    return JSON.stringify({
+      elements,
+      canvasSize: { w: canvasSize.w, h: canvasSize.h },
+    });
+  }, [elements, canvasSize]);
+
+  const handleSendData = async () => {
     if (elements.length === 0) {
       toast.error('Canvas is empty');
       return;
     }
 
-    const loadingToast = toast.loading('Sending to printer...');
+    const loadingToast = toast.loading('Sending message to printer...');
     try {
-      const payload = JSON.stringify({
-        elements,
-        canvasSize: { w: canvasSize.w, h: canvasSize.h },
-      });
+      const payload = buildPrinterPayload();
       const args = [
         '--payload',
         payload,
@@ -524,7 +559,7 @@ export default function CanvaPrintModule() {
         printerConfig.printer_ip,
         '--port',
         printerConfig.printer_port.toString(),
-        '--print',
+        // '--print', <-- Removed so it only creates the message
       ];
 
       if (window.electron && window.electron.runPython) {
@@ -535,6 +570,12 @@ export default function CanvaPrintModule() {
         console.log('Printer Output:', output);
 
         // Check for specific error messages
+        // Extract message name from output for Run Printer later
+        const msgNameMatch = output.match(/Message '([^']+)' created/);
+        if (msgNameMatch) {
+          setLastMessageName(msgNameMatch[1]);
+        }
+
         if (output.includes('[ERROR]')) {
           // Extract error message (first line after [ERROR])
           const errorMatch = output.match(/\[ERROR\]([^\n]+)/);
@@ -542,17 +583,17 @@ export default function CanvaPrintModule() {
             ? errorMatch[1].trim()
             : 'Connection failed. Check printer settings.';
 
-          toast.error(`Printer Error: ${errorMsg}`, {
+          toast.success(`Printer Error: ${errorMsg}`, {
             id: loadingToast,
             duration: 5000,
           });
         } else if (output.includes('[OK]')) {
-          toast.success('Print job started!', { id: loadingToast });
+          toast.success('Message created on printer!', { id: loadingToast });
         } else {
           // Show full output for debugging
           const errorPreview =
             output.length > 150 ? output.slice(0, 150) + '...' : output;
-          toast.error(`Printer error: ${errorPreview}`, {
+          toast.error(`Printer response: ${errorPreview}`, {
             id: loadingToast,
             duration: 5000,
           });
@@ -566,8 +607,94 @@ export default function CanvaPrintModule() {
         id: loadingToast,
         duration: 5000,
       });
-      console.error('Print error:', error);
+      console.error('Send error:', error);
     }
+  };
+
+  // ── Printer Control Handlers ──────────────────────────────────
+  const handleRunPrinter = async () => {
+    if (!lastMessageName) {
+      toast.error('No message sent yet. Send to printer first.');
+      return;
+    }
+    const loadingToast = toast.loading('Starting printer...');
+    try {
+      const args = ['print', 'start', lastMessageName];
+      if (window.electron && window.electron.runPython) {
+        const output = await window.electron.runPython(
+          'create_message/run_command.py',
+          args,
+        );
+        console.log('Run Printer Output:', output);
+        try {
+          const response = JSON.parse(output);
+          if (response.status === 'ok') {
+            toast.success('Printer started!', { id: loadingToast });
+          } else if (response.descript === 'print engine is running') {
+            toast.error('Printer is already running', { id: loadingToast });
+          } else {
+            toast.error(`Run failed: ${response.descript || 'Unknown error'}`, {
+              id: loadingToast,
+            });
+          }
+        } catch {
+          if (output.toLowerCase().includes('ok')) {
+            toast.success('Printer started!', { id: loadingToast });
+          } else {
+            toast.error(`Run failed: ${output.slice(0, 100)}`, {
+              id: loadingToast,
+            });
+          }
+        }
+      } else {
+        toast.success('Printer started (Dev Mode)', { id: loadingToast });
+      }
+    } catch (error) {
+      toast.error(`Run error: ${error.message}`, { id: loadingToast });
+      console.error('Run printer error:', error);
+    }
+  };
+
+  const handleStopPrinter = async () => {
+    const loadingToast = toast.loading('Stopping printer...');
+    try {
+      const args = ['print', 'stop'];
+      if (window.electron && window.electron.runPython) {
+        const output = await window.electron.runPython(
+          'create_message/run_command.py',
+          args,
+        );
+        console.log('Stop Printer Output:', output);
+        try {
+          const response = JSON.parse(output);
+          if (response.status === 'ok') {
+            toast.success('Printer stopped!', { id: loadingToast });
+          } else {
+            toast.error(
+              `Stop failed: ${response.descript || 'Unknown error'}`,
+              { id: loadingToast },
+            );
+          }
+        } catch {
+          toast.success('Stop command sent', { id: loadingToast });
+        }
+      } else {
+        toast.success('Printer stopped (Dev Mode)', { id: loadingToast });
+      }
+    } catch (error) {
+      toast.error(`Stop error: ${error.message}`, { id: loadingToast });
+      console.error('Stop printer error:', error);
+    }
+  };
+
+  const handleViewData = () => {
+    if (elements.length === 0) {
+      toast.error('Canvas is empty — nothing to preview');
+      return;
+    }
+    const payload = buildPrinterPayload();
+    setPrinterDataPreview(JSON.stringify(JSON.parse(payload), null, 2));
+    setModal('viewdata');
   };
 
   const updateEl = useCallback((id, patch) => {
@@ -801,6 +928,18 @@ export default function CanvaPrintModule() {
       case 'print':
         handlePrint();
         break;
+      case 'senddata':
+        handleSendData();
+        break;
+      case 'runprinter':
+        handleRunPrinter();
+        break;
+      case 'stopprinter':
+        handleStopPrinter();
+        break;
+      case 'viewdata':
+        handleViewData();
+        break;
       case 'settings':
         setModal('settings');
         break;
@@ -880,6 +1019,8 @@ export default function CanvaPrintModule() {
 
       <div className="cpm-toolbar-labels">
         <span style={{ width: 224 }}>File</span>
+        <span className="cpm-tl-sep" />
+        <span style={{ width: 104 }}>Printer Control</span>
         <span className="cpm-tl-sep" />
         <span style={{ width: 104 }}>Clipboard</span>
         <span className="cpm-tl-sep" />
@@ -1133,6 +1274,35 @@ export default function CanvaPrintModule() {
               }}
             >
               Generate QR Code
+            </button>
+          </div>
+        </Modal>
+      )}
+
+      {modal === 'viewdata' && printerDataPreview && (
+        <Modal title="Printer Data Preview" onClose={() => setModal(null)}>
+          <div className="cpm-modal-description">
+            This is the exact JSON data that will be sent to the printer when
+            you click &quot;Send to Printer&quot;.
+          </div>
+          <div className="cpm-data-preview-wrap">
+            <pre className="cpm-data-preview-code">{printerDataPreview}</pre>
+          </div>
+          <div className="cpm-modal-actions">
+            <button
+              className="cpm-btn cpm-btn-ghost"
+              onClick={() => {
+                navigator.clipboard.writeText(printerDataPreview);
+                toast.success('Copied to clipboard!');
+              }}
+            >
+              Copy JSON
+            </button>
+            <button
+              className="cpm-btn cpm-btn-primary"
+              onClick={() => setModal(null)}
+            >
+              Close
             </button>
           </div>
         </Modal>
