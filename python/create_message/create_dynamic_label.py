@@ -92,6 +92,35 @@ def main():
         # Build element lookup for barcode source resolution
         el_by_id = {e["id"]: e for e in elements}
 
+        # Pre-create SN-DATE source so barcode can include it (date changes at print time)
+        sn_text_el = next((e for e in elements if str(e.get("name") or "") == "SN-TEXT"), None)
+        sn_date_el = next((e for e in elements if str(e.get("name") or "") == "SN-DATE"), None)
+        sn_date_source_id = None
+        if sn_date_el:
+            attr = sn_date_el.get("attribute", {})
+            if attr.get("format"):
+                date_attr = attr
+            else:
+                date_attr = {
+                    "format": {
+                        "hash": 23560760, "name": "JULION DAY", "locale": "default",
+                        "radix": {"hash": 24481712, "name": "dec", "radix_digits": "0123456789"},
+                        "items": [{"type": "date", "content": "DST"}, {"type": "date", "content": "HH"}, {"type": "date", "content": "mm"}, {"type": "date", "content": "ss"}]
+                    },
+                    "expiry": 0, "zero": 0, "expiry_unit": "year", "leading_zero": "leading_zeros",
+                    "calendar": "gregorian", "daylight_saving_time": "off", "page": 0
+                }
+            r = send_command(s, {
+                "request_type": "post", "path": "/data/source", "hash": int(time.time()),
+                "type": "date", "name": "SN-DATE", "attribute": date_attr
+            })
+            if r.get("status") == "ok":
+                sn_date_source_id = r["id"]
+                source_map[sn_date_el["id"]] = sn_date_source_id
+                source_details.append({"type": "date", "id": sn_date_source_id, "name": "SN-DATE", "attribute": date_attr})
+                print(f"  [OK] Source 'SN-DATE' created (ID: {sn_date_source_id})")
+            time.sleep(0.05)
+
         # Deduplicate SN-TEXT/SN-DATE: when multiple elements display the same content,
         # keep only the one that does NOT overlap the barcode (rightmost).
         from collections import defaultdict
@@ -172,6 +201,27 @@ def main():
                                 barcode_source_ids.append({"type": "text", "id": r["id"]})
                                 source_details.append({"type": "text", "id": r["id"], "name": src_payload["name"], "attribute": src_payload["attribute"]})
                             time.sleep(0.05)
+                    # Add SN (21) and date to barcode if SN-TEXT and SN-DATE exist
+                    if sn_text_el:
+                        sn_val = sn_text_el.get("content") or sn_text_el.get("attribute", {}).get("content", "")
+                        if ":" in sn_val:
+                            sn_val = sn_val.split(":", 1)[1]
+                        sn_val = sn_val.replace("-", "").strip()
+                        if sn_val:
+                            src_payload = {
+                                "request_type": "post", "path": "/data/source", "hash": int(time.time()),
+                                "type": "text", "name": f"qr_{el.get('id', '')}_sn",
+                                "attribute": {"content": "21" + sn_val, "exported": False, "limit_switch": False, "page": 0}
+                            }
+                            r = send_command(s, src_payload)
+                            if r.get("status") == "ok":
+                                barcode_source_ids.append({"type": "text", "id": r["id"]})
+                                source_details.append({"type": "text", "id": r["id"], "name": src_payload["name"], "attribute": src_payload["attribute"]})
+                                print(f"  [OK] Barcode +SN (21) source added")
+                            time.sleep(0.05)
+                    if sn_date_source_id is not None:
+                        barcode_source_ids.append({"type": "date", "id": sn_date_source_id})
+                        print(f"  [OK] Barcode +date source added")
                     if barcode_source_ids:
                         source_map[f"barcode_{el['id']}"] = barcode_source_ids
                         print(f"  [OK] Barcode sources for '{el['id']}' created ({len(barcode_source_ids)} sources)")
@@ -191,6 +241,11 @@ def main():
                     source_map[f"barcode_{el['id']}"] = sid
                     source_details.append({"type": "text", "id": sid, "name": src_payload["name"], "attribute": src_payload["attribute"]})
                     print(f"  [OK] Barcode source for '{el['id']}' created (ID: {sid})")
+                continue
+
+            # Skip if source already created (e.g. SN-DATE in pre-pass for barcode)
+            if el["id"] in source_map:
+                time.sleep(0.05)
                 continue
 
             # Handle Fixed Elements (with attribute) and Canvas Elements (with content)
