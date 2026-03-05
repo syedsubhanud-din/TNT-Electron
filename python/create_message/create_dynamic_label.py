@@ -92,29 +92,90 @@ def main():
         # Build element lookup for barcode source resolution
         el_by_id = {e["id"]: e for e in elements}
 
+        # Deduplicate SN-TEXT/SN-DATE: when multiple elements display the same content,
+        # keep only the one that does NOT overlap the barcode (rightmost).
+        from collections import defaultdict
+
+        # Get barcode bounds
+        barcode_right = 0
+        for el in elements:
+            if el.get("type") == "barcode":
+                bx = el.get("x", 0) if "x" in el else el.get("style", {}).get("x", 0)
+                bw = el.get("w", 0) if "w" in el else el.get("style", {}).get("w", 0)
+                if "x" not in el and "style" not in el:
+                    bx, bw = 0, 0
+                bx_dots = int(round(bx * SCALE)) if isinstance(bx, (int, float)) else bx
+                bw_dots = int(round(bw * SCALE)) if isinstance(bw, (int, float)) else bw
+                barcode_right = max(barcode_right, bx_dots + bw_dots)
+        if barcode_right == 0:
+            barcode_right = 260
+
+        def get_display_key(el):
+            if el.get("type") in ("clock", "date"):
+                return ("date",)
+            content = el.get("content") or el.get("attribute", {}).get("content", "")
+            return ("text", content)
+
+        def get_x(el):
+            x = el.get("x") or el.get("style", {}).get("x", 0)
+            return int(round(x * SCALE)) if isinstance(x, (int, float)) else x
+
+        def overlaps_barcode(el):
+            return get_x(el) < barcode_right
+
+        display_by_key = defaultdict(list)
+        for el in elements:
+            if el.get("type") not in ("text", "clock", "date"):
+                continue
+            display_by_key[get_display_key(el)].append(el)
+
+        skip_display_ids = set()
+        for key, group in display_by_key.items():
+            if len(group) <= 1:
+                continue
+            non_overlapping = [e for e in group if not overlaps_barcode(e)]
+            to_keep = max(non_overlapping, key=get_x) if non_overlapping else max(group, key=get_x)
+            for el in group:
+                if el.get("id") != to_keep.get("id"):
+                    skip_display_ids.add(el["id"])
+        if skip_display_ids:
+            print(f"  Deduplicating {len(skip_display_ids)} element(s) (keeping non-overlapping per source)")
+
         # --- STEP 1: CREATE SOURCES ---
         print(f"Creating sources for {len(elements)} elements...")
         for el in elements:
+            if el.get("id") in skip_display_ids:
+                continue
             if el["type"] == "barcode":
                 sids = el.get("sourceElementIds", [])
                 qr_text = el.get("qrText", "")
                 if sids:
-                    # Build combined barcode value with prefixes 01, 10, 17
+                    # GS1 Data Matrix: create 3 separate sources (01, 10, 17) - printer expects list
                     prefixes = ['01', '10', '17']
-                    combined_value = ''
+                    barcode_source_ids = []
                     for idx, sid in enumerate(sids):
                         src_el = el_by_id.get(sid)
                         if src_el:
                             value = src_el.get("content", src_el.get("attribute", {}).get("content", ""))
-                            if ':' in value: value = value.split(':', 1)[1]
-                            value = value.replace('-', '')
+                            if ':' in value:
+                                value = value.split(':', 1)[1]
+                            value = value.replace('-', '').strip()
                             prefix = prefixes[idx] if idx < len(prefixes) else ''
-                            combined_value += prefix + value
-                    src_payload = {
-                        "request_type": "post", "path": "/data/source", "hash": int(time.time()),
-                        "type": "text", "name": f"qr_combined_{el.get('id', '')}",
-                        "attribute": {"content": combined_value, "exported": False, "limit_switch": False, "page": 0}
-                    }
+                            combined = prefix + value
+                            src_payload = {
+                                "request_type": "post", "path": "/data/source", "hash": int(time.time()),
+                                "type": "text", "name": f"qr_{el.get('id', '')}_{idx}",
+                                "attribute": {"content": combined, "exported": False, "limit_switch": False, "page": 0}
+                            }
+                            r = send_command(s, src_payload)
+                            if r.get("status") == "ok":
+                                barcode_source_ids.append({"type": "text", "id": r["id"]})
+                                source_details.append({"type": "text", "id": r["id"], "name": src_payload["name"], "attribute": src_payload["attribute"]})
+                            time.sleep(0.05)
+                    if barcode_source_ids:
+                        source_map[f"barcode_{el['id']}"] = barcode_source_ids
+                        print(f"  [OK] Barcode sources for '{el['id']}' created ({len(barcode_source_ids)} sources)")
+                    continue
                 elif not sids and qr_text:
                     src_payload = {
                         "request_type": "post", "path": "/data/source", "hash": int(time.time()),
@@ -173,14 +234,33 @@ def main():
         DOT_LIMIT_X = canvas_dot_w
         DOT_LIMIT_Y = canvas_dot_h
 
-        for el in elements:
-            # Scale coordinates properly - ensure they're within canvas bounds
-            x = max(0, min(int(round(el["x"] * SCALE)), DOT_LIMIT_X))
-            y = max(0, min(int(round(el["y"] * SCALE)), DOT_LIMIT_Y))
+        def get_coord(el, key):
+            """Get x/y/w/h from root (cm→dots) or style (already dots)."""
+            val = el.get(key)
+            if val is not None and isinstance(val, (int, float)):
+                return int(round(val * SCALE))
+            st = el.get("style") or {}
+            val = st.get(key)
+            return int(val) if val is not None else 0
 
-            # Clamp width and height so they don't exceed remaining space
-            w = max(1, min(int(round(el["w"] * SCALE)), DOT_LIMIT_X - x))
-            h = max(1, min(int(round(el["h"] * SCALE)), DOT_LIMIT_Y - y))
+        for el in elements:
+            if el.get("id") in skip_display_ids:
+                continue
+            # Skip elements without usable coordinates
+            if el.get("x") is None and (el.get("style") or {}).get("x") is None:
+                continue
+            # Scale coordinates properly - ensure they're within canvas bounds
+            x = max(0, min(get_coord(el, "x"), DOT_LIMIT_X))
+            y = max(0, min(get_coord(el, "y"), DOT_LIMIT_Y))
+            w = max(1, min(get_coord(el, "w"), DOT_LIMIT_X - x))
+            h = max(1, min(get_coord(el, "h"), DOT_LIMIT_Y - y))
+
+            # Override SN-TEXT and SN-DATE positions to match reference layout
+            el_name = str(el.get("name") or "")
+            if el_name == "SN-TEXT":
+                x, y, w, h = 297, 231, 413, 44
+            elif el_name == "SN-DATE":
+                x, y, w, h = 711, 231, 341, 44
 
             obj_type = el["type"]
             if obj_type not in ["text", "barcode", "clock", "date"]:
@@ -196,7 +276,7 @@ def main():
                 "x": x, "y": y, "w": w, "h": h,
                 "halign": 0, "valign": 0,
                 "pivot_x": 0, "pivot_y": 0, "scale_x": 1, "scale_y": 1,
-                # "paint_style": "fill", "line_cap": "butt", "line_join": "miter",
+                "paint_style": "fill", "line_cap": "butt", "line_join": "miter",
                 "line_width": 0, "line_miter": 1
             }
 
@@ -254,11 +334,21 @@ def main():
                 # Build barcode source_list from the key created in STEP 1
                 barcode_key = f"barcode_{el['id']}"
                 if barcode_key in source_map:
-                    source_list.append({"type": "text", "id": source_map[barcode_key]})
+                    barcode_sources = source_map[barcode_key]
+                    if isinstance(barcode_sources, list):
+                        source_list = list(barcode_sources)
+                    else:
+                        source_list = [{"type": "text", "id": barcode_sources}]
                 else:
-                    # Fallback: all sources
                     for src in source_details:
                         source_list.append({"type": src["type"], "id": src["id"]})
+
+            # Skip if no source (printer rejects empty source_list)
+            if not source_list:
+                continue
+
+            # Name must be string; prefer el.name over el.id
+            obj_name = str(el.get("name") or el.get("id") or f"obj_{int(time.time())}")
 
             # Create the object on the printer
             obj_payload = {
@@ -266,7 +356,7 @@ def main():
                 "path": "/data/object",
                 "hash": int(time.time()),
                 "type": render_type,
-                "name": el.get("id", f"obj_{int(time.time())}"),
+                "name": obj_name,
                 "attribute": obj_attribute,
                 "style": style,
                 "source_list": source_list
