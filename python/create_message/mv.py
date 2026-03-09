@@ -570,9 +570,13 @@ def run_listen_loop(camera: CameraConnection, db: DatabaseWriter, verbose: bool 
                 line = chunk.decode(errors="replace").replace("!OK\x03", "").replace("!OK", "").strip()
                 line = line.replace("!ERROR", "").strip()
                 if line:
-                    log.info("RECEIVED: %s", line)
-                    db.add_scan(line)
-                    db.maybe_flush()
+                    # Multiple records separated by ';' — insert each as a separate row
+                    records = [r.strip() for r in line.split(";") if r.strip()]
+                    for record in records:
+                        log.info("RECEIVED: %s", record)
+                        db.add_scan(record)
+                    if records:
+                        db.maybe_flush()
             else:
                 if verbose:
                     log.debug("recv returned empty (connection closed)")
