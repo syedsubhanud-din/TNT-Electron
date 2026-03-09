@@ -545,7 +545,7 @@ def run_loop(
     log.info("Stopped. Total scans inserted: %d", db.total_inserted)
 
 
-def run_listen_loop(camera: CameraConnection, db: DatabaseWriter) -> None:
+def run_listen_loop(camera: CameraConnection, db: DatabaseWriter, verbose: bool = False) -> None:
     """
     Listen-only loop: no TRIGGER from code. Keeps connection alive, receives/logs
     incoming data, and inserts each chunk into the database.
@@ -556,6 +556,7 @@ def run_listen_loop(camera: CameraConnection, db: DatabaseWriter) -> None:
 
     buf = b""
     camera._sock.settimeout(2.0)
+    timeout_count = 0
 
     while not shutdown.should_stop:
         shutdown.check_stop_file()
@@ -563,14 +564,24 @@ def run_listen_loop(camera: CameraConnection, db: DatabaseWriter) -> None:
             break
         try:
             chunk = camera._sock.recv(4096)
-            line = chunk.decode(errors="replace").replace("!OK\x03", "").replace("!OK", "").strip()
-            line = line.replace("!ERROR", "").strip()
-            if line:
-                log.info("RECEIVED: %s", line)
-                db.add_scan(line)
-                db.maybe_flush()
+            if chunk:
+                if verbose:
+                    log.debug("recv %d bytes: %r", len(chunk), chunk[:80])
+                line = chunk.decode(errors="replace").replace("!OK\x03", "").replace("!OK", "").strip()
+                line = line.replace("!ERROR", "").strip()
+                if line:
+                    log.info("RECEIVED: %s", line)
+                    db.add_scan(line)
+                    db.maybe_flush()
+            else:
+                if verbose:
+                    log.debug("recv returned empty (connection closed)")
+                break
 
         except socket.timeout:
+            timeout_count += 1
+            if verbose and timeout_count % 30 == 1:
+                log.debug("listen idle (timeout %d, waiting for camera data)", timeout_count)
             continue
         except OSError as exc:
             log.warning("Connection error: %s, reconnecting...", exc)
@@ -805,7 +816,7 @@ def main() -> None:
         camera.connect()
         with db:
             if args.listen:
-                run_listen_loop(camera, db)
+                run_listen_loop(camera, db, verbose=args.verbose)
             elif args.once:
                 run_once(camera, db)
             else:
