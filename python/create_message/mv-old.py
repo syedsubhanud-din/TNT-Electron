@@ -301,8 +301,8 @@ class CameraConnection:
             if result.startswith("!ERROR"):
                 self._send_cmd_read_response("ONLINE", 2.0)
                 return None, result
-            self._send_cmd_read_response("OFFLINE", 2.0)
-            log.info("Autofocus done: %s (current;min;max mm), camera set OFFLINE", result)
+            self._send_cmd_read_response("ONLINE", 2.0)
+            log.info("Autofocus done: %s (current;min;max mm)", result)
             return result, None
         except (OSError, socket.error) as exc:
             log.warning("Autofocus error: %s", exc)
@@ -482,7 +482,7 @@ class DatabaseWriter:
 # ---------------------------------------------------------------------------
 
 class ShutdownHandler:
-    """Coordinate clean shutdown on SIGINT/SIGTERM or stop file."""
+    """Coordinate clean shutdown on SIGINT/SIGTERM."""
 
     def __init__(self):
         self._shutdown = threading.Event()
@@ -492,13 +492,6 @@ class ShutdownHandler:
     def _handle(self, signum, frame):
         log.info("Shutdown signal received, finishing pending work...")
         self._shutdown.set()
-
-    def check_stop_file(self) -> None:
-        """If MV40_STOP_FILE env points to an existing file, request shutdown."""
-        path = os.environ.get("MV40_STOP_FILE")
-        if path and os.path.isfile(path):
-            log.info("Stop file detected, shutting down...")
-            self._shutdown.set()
 
     @property
     def should_stop(self) -> bool:
@@ -525,16 +518,13 @@ def run_loop(
     shutdown = ShutdownHandler()
 
     while not shutdown.should_stop:
-        shutdown.check_stop_file()
-        if shutdown.should_stop:
-            break
         value, err = camera.trigger()
         if err:
             log.info("Scan error: %s", err)
             if shutdown.wait(interval_sec):
                 break
             continue
-        log.info("Scanned: %s", value)
+        log.info("SCANNED: %s", value)
         db.add_scan(value)
         db.maybe_flush()
         if shutdown.wait(interval_sec):
@@ -558,18 +548,15 @@ def run_listen_loop(camera: CameraConnection, db: DatabaseWriter) -> None:
     camera._sock.settimeout(2.0)
 
     while not shutdown.should_stop:
-        shutdown.check_stop_file()
-        if shutdown.should_stop:
-            break
         try:
             chunk = camera._sock.recv(4096)
             line = chunk.decode(errors="replace").replace("!OK\x03", "").replace("!OK", "").strip()
             line = line.replace("!ERROR", "").strip()
             if line:
-                log.info("RECEIVED: %s", line)
+                log.info("SCANNED: %s", line)
                 db.add_scan(line)
                 db.maybe_flush()
-
+                
         except socket.timeout:
             continue
         except OSError as exc:
@@ -586,29 +573,6 @@ def run_listen_loop(camera: CameraConnection, db: DatabaseWriter) -> None:
     log.info("Flushing remaining scans...")
     db.flush()
     log.info("Stopped. Total scans inserted: %d", db.total_inserted)
-
-
-def list_scans(db: DatabaseWriter, limit: int = 15, offset: int = 0) -> None:
-    """Fetch paginated scans from the database and print as JSON."""
-    import json
-    logging.getLogger("mv40").setLevel(logging.ERROR)
-    try:
-        db._ensure_connected()
-        with db._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
-            cur.execute(
-                "SELECT id, barcode_value, scanned_at FROM scans ORDER BY scanned_at DESC LIMIT %s OFFSET %s",
-                (limit + 1, offset),
-            )
-            rows = cur.fetchall()
-            has_more = len(rows) > limit
-            if has_more:
-                rows = rows[:limit]
-            for row in rows:
-                if row["scanned_at"]:
-                    row["scanned_at"] = row["scanned_at"].isoformat()
-            print(json.dumps({"rows": rows, "hasMore": has_more}))
-    except Exception as exc:
-        print(json.dumps({"error": str(exc)}))
 
 
 def trigger_capture_and_insert(
@@ -671,6 +635,11 @@ def main() -> None:
     )
     parser.add_argument("--once", action="store_true", help="Single scan then exit")
     parser.add_argument(
+        "--capture",
+        action="store_true",
+        help="Trigger camera capture once and insert record into DB (same as --once)",
+    )
+    parser.add_argument(
         "--listen", action="store_true",
         help="Listen for incoming data and insert into DB (no trigger)",
     )
@@ -681,28 +650,9 @@ def main() -> None:
         help="Load AVP/AVZ job file before running (e.g. 1.avp, or MV40_LOAD_JOB env)",
     )
     parser.add_argument(
-        "--list-scans", action="store_true",
-        help="Query the scans table and print as JSON (paginated)",
-    )
-    parser.add_argument(
-        "--limit", type=int, default=15,
-        help="Max rows per page for --list-scans (default: 15)",
-    )
-    parser.add_argument(
-        "--offset", type=int, default=0,
-        help="Offset for --list-scans pagination (default: 0)",
-    )
-    parser.add_argument(
-        "--test-connection", action="store_true",
-        help="Test camera TCP connection (no DB required). Prints JSON result.",
-    )
-    parser.add_argument(
-        "--stop", action="store_true",
-        help="Set camera OFFLINE (no DB required). Prints JSON result.",
-    )
-    parser.add_argument(
-        "--autofocus", action="store_true",
-        help="Run QUICKFOCUS to adjust focus (no DB required). Prints JSON result.",
+        "--autofocus",
+        action="store_true",
+        help="Run QUICKFOCUS to adjust focus, then exit (no DB required)",
     )
     parser.add_argument(
         "--autofocus-x", type=int, default=640,
@@ -717,66 +667,21 @@ def main() -> None:
 
     setup_logging(args.verbose)
 
-    # --test-connection: no DB required
-    if args.test_connection:
-        import json
-        camera = CameraConnection(args.ip, args.port, args.tag)
-        try:
-            camera.connect()
-            print(json.dumps({"success": True, "message": "Camera connected"}))
-        except Exception as e:
-            print(json.dumps({"success": False, "error": str(e)}))
-        finally:
-            camera.close()
-        return
-
-    # --stop: set camera OFFLINE, no DB required
-    if args.stop:
-        import json
-        camera = CameraConnection(args.ip, args.port, args.tag)
-        try:
-            camera.connect()
-            camera.offline()
-            print(json.dumps({"success": True, "message": "Camera set OFFLINE"}))
-        except Exception as e:
-            print(json.dumps({"success": False, "error": str(e)}))
-        finally:
-            camera.close()
-        return
-
-    # --autofocus: no DB required
     if args.autofocus:
-        import json
         camera = CameraConnection(args.ip, args.port, args.tag)
         try:
+            # if args.load_job:
+            #     if not camera.load_job(args.load_job):
+            #         raise SystemExit(1)
+            # else:
             camera.connect()
             result, err = camera.autofocus(args.autofocus_x, args.autofocus_y)
             if err:
-                print(json.dumps({"success": False, "error": err}))
-            else:
-                print(json.dumps({"success": True, "message": "Autofocus completed", "response": result}))
-        except Exception as e:
-            print(json.dumps({"success": False, "error": str(e)}))
+                log.error("Autofocus failed: %s", err)
+                raise SystemExit(1)
+            log.info("Autofocus complete. Focus: %s", result)
         finally:
             camera.close()
-        return
-
-    # --list-scans: DB required, no camera
-    if args.list_scans:
-        if not args.dbpassword:
-            log.error("Database password required for --list-scans.")
-            raise SystemExit(1)
-        db = DatabaseWriter(
-            host=args.dbhost,
-            port=args.dbport,
-            dbname=args.dbname,
-            user=args.dbuser,
-            password=args.dbpassword,
-            batch_size=args.batch_size,
-            flush_interval=args.batch_flush_sec,
-        )
-        with db:
-            list_scans(db, limit=args.limit, offset=args.offset)
         return
 
     if not args.dbpassword:
@@ -798,15 +703,16 @@ def main() -> None:
 
     camera = CameraConnection(args.ip, args.port, args.tag, command_logger=db)
     try:
-        if args.load_job:
-            if not camera.load_job(args.load_job):
-                raise SystemExit(1)
+        # if args.load_job:
+        #     if not camera.load_job(args.load_job):
+        #         raise SystemExit(1)
+        # else:
         camera.offline()
         camera.connect()
         with db:
             if args.listen:
                 run_listen_loop(camera, db)
-            elif args.once:
+            elif args.once or args.capture:
                 run_once(camera, db)
             else:
                 run_loop(camera, db, args.interval, args.verbose)

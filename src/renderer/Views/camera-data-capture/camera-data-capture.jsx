@@ -15,11 +15,16 @@ export default function CameraDataCapture() {
   });
 
   const [pythonPid, setPythonPid] = useState(null);
+  const [pythonStopFile, setPythonStopFile] = useState(null);
   const [listenPid, setListenPid] = useState(null);
+  const [listenStopFile, setListenStopFile] = useState(null);
   const [captureError, setCaptureError] = useState(null);
   const [logs, setLogs] = useState([]);
   const [historyData, setHistoryData] = useState([]);
   const [loadingHistory, setLoadingHistory] = useState(false);
+  const [loadingMore, setLoadingMore] = useState(false);
+  const [hasMoreScans, setHasMoreScans] = useState(true);
+  const PAGE_SIZE = 15;
 
   const addLog = (type, message) => {
     const now = new Date();
@@ -170,13 +175,13 @@ export default function CameraDataCapture() {
     return () => {
       // Ensure both python scripts are stopped when leaving this page
       if (pythonPid) {
-        window.electron.stopPython(pythonPid);
+        window.electron.stopPython(pythonPid, pythonStopFile);
       }
       if (listenPid) {
-        window.electron.stopPython(listenPid);
+        window.electron.stopPython(listenPid, listenStopFile);
       }
     };
-  }, [pythonPid, listenPid]);
+  }, [pythonPid, pythonStopFile, listenPid, listenStopFile]);
 
   const handleStartCapture = async () => {
     setCaptureState('capturing');
@@ -200,6 +205,7 @@ export default function CameraDataCapture() {
       if (result.success) {
         console.log('Python script started with PID:', result.pid);
         setPythonPid(result.pid);
+        setPythonStopFile(result.stopFile || null);
         addLog('info', 'Capture mode started');
       } else {
         throw new Error(result.error || 'Failed to start Python script');
@@ -222,8 +228,9 @@ export default function CameraDataCapture() {
       // If capture mode is running, we MUST stop it first to free the camera's TCP port
       if (pythonPid) {
         addLog('info', 'Switching to listen mode, stopping regular capture...');
-        await window.electron.stopPython(pythonPid);
+        await window.electron.stopPython(pythonPid, pythonStopFile);
         setPythonPid(null);
+        setPythonStopFile(null);
         // Wait a small moment for port to release
         await new Promise((resolve) => setTimeout(resolve, 500));
       }
@@ -243,6 +250,7 @@ export default function CameraDataCapture() {
       if (result.success) {
         console.log('Python listen script started with PID:', result.pid);
         setListenPid(result.pid);
+        setListenStopFile(result.stopFile || null);
         addLog('success', 'Listen mode active');
       } else {
         throw new Error(result.error || 'Failed to start Python listen script');
@@ -280,16 +288,18 @@ export default function CameraDataCapture() {
 
   const handleStop = async () => {
     try {
-      // Stop the camera script
+      // Stop the camera script (pass stopFile for graceful OFFLINE)
       if (pythonPid) {
-        await window.electron.stopPython(pythonPid);
+        await window.electron.stopPython(pythonPid, pythonStopFile);
         setPythonPid(null);
+        setPythonStopFile(null);
       }
 
       // Stop the listen script
       if (listenPid) {
-        await window.electron.stopPython(listenPid);
+        await window.electron.stopPython(listenPid, listenStopFile);
         setListenPid(null);
+        setListenStopFile(null);
       }
 
       // Stop the printer
@@ -302,38 +312,90 @@ export default function CameraDataCapture() {
     setCaptureState('idle'); // Return to idle state to show Start button
   };
 
-  const handleRecalibrate = () => {
-    console.log('Recalibrating camera...');
+  const [recalibrating, setRecalibrating] = useState(false);
+  const handleRecalibrate = async () => {
+    setRecalibrating(true);
+    addLog('info', 'Running autofocus...');
+    try {
+      const result = await window.electron.runPython('create_message/mv.py', [
+        '--autofocus',
+      ]);
+      const parsed = JSON.parse(result);
+      if (parsed.success) {
+        addLog('success', 'Autofocus completed');
+        await handleStop();
+      } else {
+        addLog('error', `Autofocus failed: ${parsed.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      addLog('error', `Recalibrate failed: ${error.message}`);
+    } finally {
+      setRecalibrating(false);
+    }
   };
 
   const handleManualOverride = () => {
     console.log('Manual override triggered...');
   };
 
-  const fetchHistory = async () => {
-    setLoadingHistory(true);
+  const [testingConnection, setTestingConnection] = useState(false);
+  const handleTestConnection = async () => {
+    setTestingConnection(true);
+    addLog('info', 'Testing camera connection...');
     try {
-      // We use runPython without background option to get the stdout result (JSON)
+      const result = await window.electron.runPython('create_message/mv.py', [
+        '--test-connection',
+      ]);
+      const parsed = JSON.parse(result);
+      if (parsed.success) {
+        addLog('success', 'Camera connected successfully');
+      } else {
+        addLog('error', `Camera connection failed: ${parsed.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      addLog('error', `Test failed: ${error.message}`);
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  const fetchHistory = async (append = false) => {
+    const offset = append ? historyData.length : 0;
+    if (append) {
+      setLoadingMore(true);
+    } else {
+      setLoadingHistory(true);
+      setHasMoreScans(true);
+    }
+    try {
       const result = await window.electron.runPython('create_message/mv.py', [
         '--list-scans',
+        '--limit',
+        String(PAGE_SIZE),
+        '--offset',
+        String(offset),
       ]);
 
-      // The result should be a JSON string of all scans
       try {
         const parsed = JSON.parse(result);
-        if (Array.isArray(parsed)) {
-          console.log('scan History Data', parsed);
-
-          // Add parsed components to each history item
-          const enhancedData = parsed.map((item) => ({
-            ...item,
-            parsed: parseBarcode(item.barcode_value),
-          }));
-
-          setHistoryData(enhancedData);
-          addLog('info', `Loaded ${parsed.length} historical scans`);
-        } else if (parsed.error) {
+        if (parsed.error) {
           addLog('error', `History error: ${parsed.error}`);
+          return;
+        }
+        const rows = parsed.rows || [];
+        setHasMoreScans(parsed.hasMore === true);
+
+        const enhancedData = rows.map((item) => ({
+          ...item,
+          parsed: parseBarcode(item.barcode_value),
+        }));
+
+        if (append) {
+          setHistoryData((prev) => [...prev, ...enhancedData]);
+          addLog('info', `Loaded ${rows.length} more scans`);
+        } else {
+          setHistoryData(enhancedData);
+          addLog('info', `Loaded ${enhancedData.length} historical scans`);
         }
       } catch (parseErr) {
         console.error(
@@ -349,6 +411,15 @@ export default function CameraDataCapture() {
       addLog('error', `Failed to load history: ${error.message}`);
     } finally {
       setLoadingHistory(false);
+      setLoadingMore(false);
+    }
+  };
+
+  const handleHistoryScroll = (e) => {
+    const el = e.target;
+    const nearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 80;
+    if (nearBottom && hasMoreScans && !loadingMore && !loadingHistory) {
+      fetchHistory(true);
     }
   };
 
@@ -435,8 +506,26 @@ export default function CameraDataCapture() {
             {captureState === 'idle' && (
               <div
                 className="main-action-group"
-                style={{ display: 'flex', gap: '10px' }}
+                style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}
               >
+                <button
+                  className="btn-outline"
+                  onClick={handleTestConnection}
+                  disabled={testingConnection}
+                >
+                  <svg
+                    width="18"
+                    height="18"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                  >
+                    <path d="M22 11.08V12a10 10 0 1 1-5.93-9.14"></path>
+                    <polyline points="22 4 12 14.01 9 11.01"></polyline>
+                  </svg>
+                  {testingConnection ? 'Testing...' : 'Test Connection'}
+                </button>
                 <button className="btn-start" onClick={handleStartCapture}>
                   <svg
                     width="18"
@@ -558,7 +647,11 @@ export default function CameraDataCapture() {
               </button>
             )}
 
-            <button className="btn-outline" onClick={handleRecalibrate}>
+            <button
+              className="btn-outline"
+              onClick={handleRecalibrate}
+              disabled={recalibrating}
+            >
               <svg
                 width="18"
                 height="18"
@@ -571,7 +664,7 @@ export default function CameraDataCapture() {
                 <polyline points="1 20 1 14 7 14"></polyline>
                 <path d="M3.51 9a9 9 0 0 1 14.85-3.36L23 10M1 14l4.64 4.36A9 9 0 0 0 20.49 15"></path>
               </svg>
-              Recalibrate
+              {recalibrating ? 'Recalibrating...' : 'Recalibrate'}
             </button>
 
             <button className="btn-outline" onClick={handleManualOverride}>
@@ -723,7 +816,10 @@ export default function CameraDataCapture() {
           </button>
         </div>
 
-        <div className="history-table-container">
+        <div
+          className="history-table-container"
+          onScroll={handleHistoryScroll}
+        >
           <table className="history-table">
             <thead>
               <tr>
@@ -737,24 +833,32 @@ export default function CameraDataCapture() {
             </thead>
             <tbody>
               {historyData.length > 0 ? (
-                historyData.map((scan) => (
-                  <tr key={scan.id}>
-                    <td>{scan.id}</td>
-                    <td className="parsed-cell">{scan.parsed?.gtin || '-'}</td>
-                    <td className="parsed-cell">{scan.parsed?.batch || '-'}</td>
-                    <td className="parsed-cell">
-                      {scan.parsed?.mfgDate || '-'}
-                    </td>
-                    {/* <td className="barcode-cell small">{scan.barcode_value}</td> */}
-                    <td className="time-cell">
-                      {new Date(scan.scanned_at).toLocaleString()}
-                    </td>
-                  </tr>
-                ))
+                <>
+                  {historyData.map((scan) => (
+                    <tr key={scan.id}>
+                      <td>{scan.id}</td>
+                      <td className="parsed-cell">{scan.parsed?.gtin || '-'}</td>
+                      <td className="parsed-cell">{scan.parsed?.batch || '-'}</td>
+                      <td className="parsed-cell">
+                        {scan.parsed?.mfgDate || '-'}
+                      </td>
+                      <td className="time-cell">
+                        {new Date(scan.scanned_at).toLocaleString()}
+                      </td>
+                    </tr>
+                  ))}
+                  {loadingMore && (
+                    <tr>
+                      <td colSpan="5" className="no-data" style={{ padding: '12px' }}>
+                        Loading more...
+                      </td>
+                    </tr>
+                  )}
+                </>
               ) : (
                 <tr>
-                  <td colSpan="6" className="no-data">
-                    No scans found in database
+                  <td colSpan="5" className="no-data">
+                    {loadingHistory ? 'Loading...' : 'No scans found in database'}
                   </td>
                 </tr>
               )}

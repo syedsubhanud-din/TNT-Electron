@@ -37,28 +37,48 @@ ipcMain.on('ipc-example', async (event, arg) => {
 });
 
 const getPythonExecutable = async (pythonDir: string) => {
+  const fs = require('fs');
+
   const venvPython =
     process.platform === 'win32'
       ? path.join(pythonDir, 'venv', 'Scripts', 'python.exe')
       : path.join(pythonDir, 'venv', 'bin', 'python');
 
-  const fs = require('fs');
-
-  // If venv exists, we try it first.
-  // But in packaged builds, a local venv might be broken due to absolute paths in pyvenv.cfg.
   if (fs.existsSync(venvPython)) {
-    // Basic check: if we're packaged, the venv might be invalid if it was copied from a different user's machine
-    // However, some users might bundle a truly portable venv.
-    // We'll tentatively use it, but we need a way to fallback if it fails.
     return venvPython;
   }
 
   // Fallback to system python
   if (process.platform === 'win32') {
-    // Try 'python' first, then 'py' (launcher)
     return 'python';
   }
   return 'python3';
+};
+
+/**
+ * In packaged builds the Python scripts are compiled to standalone .exe files.
+ * Returns the exe path if it exists, otherwise falls back to running the .py
+ * script with the system Python interpreter.
+ */
+const resolveScript = async (
+  pythonDir: string,
+  scriptName: string,
+): Promise<{ executable: string; scriptArgs: string[] }> => {
+  const fs = require('fs');
+
+  if (app.isPackaged) {
+    // e.g. 'print_label.py' → 'print_label.exe'
+    const exeName = scriptName.replace(/\.py$/, '.exe');
+    const exePath = path.join(pythonDir, exeName);
+    if (fs.existsSync(exePath)) {
+      return { executable: exePath, scriptArgs: [] };
+    }
+  }
+
+  // Dev mode (or exe not found): use Python interpreter + script path
+  const pythonExecutable = await getPythonExecutable(pythonDir);
+  const scriptPath = path.join(pythonDir, scriptName);
+  return { executable: pythonExecutable, scriptArgs: [scriptPath] };
 };
 
 ipcMain.handle('run-python', async (_event, scriptName, args, options = {}) => {
@@ -66,14 +86,20 @@ ipcMain.handle('run-python', async (_event, scriptName, args, options = {}) => {
     ? path.join(process.resourcesPath, 'python')
     : path.join(__dirname, '../../python');
 
-  const pythonExecutable = await getPythonExecutable(pythonDir);
-  const scriptPath = path.join(pythonDir, scriptName);
+  const { executable, scriptArgs } = await resolveScript(pythonDir, scriptName);
+  const fullArgs = [...scriptArgs, ...args];
 
   if (options.background) {
-    console.log(
-      `Spawning background process: ${pythonExecutable} ${scriptPath} ${args.join(' ')}`,
-    );
-    const child = spawn(pythonExecutable, [scriptPath, ...args]);
+    console.log(`Spawning background process: ${executable} ${fullArgs.join(' ')}`);
+    const os = require('os');
+    const crypto = require('crypto');
+    const stopFile =
+      scriptName.includes('mv.py') || scriptName.includes('mv.exe')
+        ? path.join(os.tmpdir(), `mv40_stop_${crypto.randomBytes(8).toString('hex')}`)
+        : null;
+    const env = { ...process.env };
+    if (stopFile) env.MV40_STOP_FILE = stopFile;
+    const child = spawn(executable, fullArgs, { env });
 
     child.stdout.on('data', (data) => {
       const output = data.toString();
@@ -83,9 +109,7 @@ ipcMain.handle('run-python', async (_event, scriptName, args, options = {}) => {
         if (line.includes('Flushed')) return;
 
         if (line.includes('Scanned:')) {
-          console.log(
-            `\x1b[32m[Python PID ${child.pid}] stdout: ${line.trim()}\x1b[0m`,
-          );
+          console.log(`\x1b[32m[Python PID ${child.pid}] stdout: ${line.trim()}\x1b[0m`);
         } else {
           console.log(`[Python PID ${child.pid}] stdout: ${line.trim()}`);
         }
@@ -101,9 +125,7 @@ ipcMain.handle('run-python', async (_event, scriptName, args, options = {}) => {
         if (line.includes('Flushed')) return;
 
         if (line.includes('Scanned:')) {
-          console.error(
-            `\x1b[32m[Python PID ${child.pid}] stderr: ${line.trim()}\x1b[0m`,
-          );
+          console.error(`\x1b[32m[Python PID ${child.pid}] stderr: ${line.trim()}\x1b[0m`);
         } else {
           console.error(`[Python PID ${child.pid}] stderr: ${line.trim()}`);
         }
@@ -116,31 +138,38 @@ ipcMain.handle('run-python', async (_event, scriptName, args, options = {}) => {
       _event.sender.send('python-exit', { pid: child.pid, code });
     });
 
-    return { success: true, pid: child.pid };
+    return {
+      success: true,
+      pid: child.pid,
+      ...(stopFile && { stopFile }),
+    };
   }
 
   return new Promise((resolve, reject) => {
-    console.log(
-      `Executing: ${pythonExecutable} ${scriptPath} ${args.join(' ')}`,
-    );
+    console.log(`Executing: ${executable} ${fullArgs.join(' ')}`);
 
     const execOptions = {
-      maxBuffer: 10 * 1024 * 1024, // 10MB buffer for logs
+      maxBuffer: 10 * 1024 * 1024,
       env: { ...process.env },
     };
 
     execFile(
-      pythonExecutable,
-      [scriptPath, ...args],
+      executable,
+      fullArgs,
       execOptions,
       (error: Error | null, stdout: string, stderr: string) => {
         if (error) {
           console.error(`execFile error: ${error}`);
-          if (process.platform === 'win32' && pythonExecutable !== 'py') {
+          // Only try 'py' fallback in dev mode when using system python
+          if (
+            !app.isPackaged &&
+            process.platform === 'win32' &&
+            executable !== 'py'
+          ) {
             console.log('Primary python failed, trying "py" launcher...');
             execFile(
               'py',
-              [scriptPath, ...args],
+              fullArgs,
               execOptions,
               (error2: Error | null, stdout2: string, stderr2: string) => {
                 if (error2) {
@@ -157,9 +186,7 @@ ipcMain.handle('run-python', async (_event, scriptName, args, options = {}) => {
           reject(new Error(errorMsg));
           return;
         }
-        if (stderr) {
-          console.warn(`stderr: ${stderr}`);
-        }
+        if (stderr) console.warn(`stderr: ${stderr}`);
         console.log(`stdout: ${stdout}`);
         resolve(stdout || stderr);
       },
@@ -167,10 +194,26 @@ ipcMain.handle('run-python', async (_event, scriptName, args, options = {}) => {
   });
 });
 
-ipcMain.handle('stop-python', async (_event, pid) => {
+ipcMain.handle('stop-python', async (_event, pid, stopFile?: string) => {
   if (pid) {
     try {
-      process.kill(pid);
+      // If stopFile provided (mv.py), signal graceful shutdown first
+      if (stopFile) {
+        const fs = require('fs');
+        try {
+          fs.writeFileSync(stopFile, '1', 'utf8');
+        } catch {
+          /* ignore */
+        }
+        // Wait for process to exit gracefully (OFFLINE sent, camera stops)
+        await new Promise((r) => setTimeout(r, 2500));
+      }
+      if (process.platform === 'win32') {
+        const { execSync } = require('child_process');
+        execSync(`taskkill /pid ${pid} /T /F`, { stdio: 'ignore' });
+      } else {
+        process.kill(pid);
+      }
       return { success: true };
     } catch (e) {
       return { success: false, error: (e as Error).message };
@@ -184,25 +227,32 @@ ipcMain.handle('execute-python', async (_event, action, data) => {
     ? path.join(process.resourcesPath, 'python')
     : path.join(__dirname, '../../python');
 
-  const pythonExecutable = await getPythonExecutable(pythonDir);
-  const scriptPath = path.join(pythonDir, 'print_label.py');
-  const args = [scriptPath, action, data];
+  const { executable, scriptArgs } = await resolveScript(
+    pythonDir,
+    'print_label.py',
+  );
+  const fullArgs = [...scriptArgs, action, data];
 
-  return new Promise((resolve, reject) => {
-    console.log(`Executing: ${pythonExecutable} ${args.join(' ')}`);
+  return new Promise((resolve) => {
+    console.log(`Executing: ${executable} ${fullArgs.join(' ')}`);
 
     const options = { maxBuffer: 1024 * 1024 };
 
-    const run = (exe: string) => {
+    const run = (exe: string, exeArgs: string[]) => {
       execFile(
         exe,
-        args,
+        exeArgs,
         options,
         (error: Error | null, stdout: string, stderr: string) => {
           if (error) {
-            if (process.platform === 'win32' && exe !== 'py') {
+            // In dev mode only, try 'py' launcher as fallback
+            if (
+              !app.isPackaged &&
+              process.platform === 'win32' &&
+              exe !== 'py'
+            ) {
               console.log('Primary python failed, trying "py" launcher...');
-              run('py');
+              run('py', exeArgs);
               return;
             }
             console.error(`execFile error: ${error}`);
@@ -227,7 +277,7 @@ ipcMain.handle('execute-python', async (_event, action, data) => {
       );
     };
 
-    run(pythonExecutable);
+    run(executable, fullArgs);
   });
 });
 

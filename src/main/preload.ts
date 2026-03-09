@@ -33,8 +33,8 @@ const electronHandler = {
   ): Promise<any> {
     return ipcRenderer.invoke('run-python', scriptName, args, options);
   },
-  stopPython(pid: number): Promise<any> {
-    return ipcRenderer.invoke('stop-python', pid);
+  stopPython(pid: number, stopFile?: string): Promise<any> {
+    return ipcRenderer.invoke('stop-python', pid, stopFile);
   },
   executePython(action: string, data: string): Promise<any> {
     return ipcRenderer.invoke('execute-python', action, data);
