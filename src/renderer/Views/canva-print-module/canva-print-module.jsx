@@ -349,7 +349,7 @@ export default function CanvaPrintModule() {
     (el) => {
       if (el.type !== 'barcode') return '';
       if (el.sourceElementIds && el.sourceElementIds.length > 0) {
-        const prefixes = ['01', '10', '17'];
+        const prefixes = ['(01)', '(10)', '(17)'];
         return el.sourceElementIds
           .map((id, index) => {
             const src = elements.find((e) => e.id === id);
@@ -690,7 +690,7 @@ export default function CanvaPrintModule() {
             radix: {
               hash: 24129224,
               name: 'dec',
-              radix_digits: '0123456789',
+              radix_digits: '(01)23456789',
             },
             locale: 'default',
             items: [
@@ -1409,7 +1409,7 @@ export default function CanvaPrintModule() {
               <div className="cpm-preview-box">
                 {qrSelectedSources.length > 0
                   ? (() => {
-                      const prefixes = ['01', '10', '17'];
+                      const prefixes = ['(01)', '(10)', '(17)'];
                       return qrSelectedSources
                         .map((id, index) => {
                           let value =

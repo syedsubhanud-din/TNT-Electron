@@ -1,9 +1,24 @@
-#!/usr/bin/env python3
 import argparse
 import socket
 import json
 import time
 import sys
+import os
+from datetime import datetime, timezone
+from pathlib import Path
+
+try:
+    from dotenv import load_dotenv
+    script_dir = Path(__file__).resolve().parent
+    load_dotenv(script_dir.parent / ".env")
+    load_dotenv(script_dir / ".env")
+except ImportError:
+    pass
+
+try:
+    import psycopg2
+except ImportError:
+    psycopg2 = None
 
 # Constants for Sojet-style printers
 PRINTER_IP = "192.168.1.22"
@@ -32,6 +47,37 @@ def send_command(s, cmd):
         return {"status": "error", "error": str(e)}
     finally:
         s.settimeout(None)
+
+def log_to_db(barcode_value):
+    """Saves the printed barcode content to the database."""
+    if not psycopg2:
+        return
+
+    db_host = os.environ.get("MV40_DB_HOST")
+    db_port = int(os.environ.get("MV40_DB_PORT", "5432"))
+    db_name = os.environ.get("MV40_DB_NAME")
+    db_user = os.environ.get("MV40_DB_USER")
+    db_pass = os.environ.get("MV40_DB_PASSWORD")
+
+    if not all([db_host, db_name, db_user, db_pass]):
+        return
+
+    try:
+        conn = psycopg2.connect(
+            host=db_host, port=db_port, dbname=db_name,
+            user=db_user, password=db_pass,
+            connect_timeout=3
+        )
+        with conn.cursor() as cur:
+            cur.execute(
+                "INSERT INTO scans (barcode_value, scanned_at) VALUES (%s, %s)",
+                (barcode_value, datetime.now(timezone.utc))
+            )
+        conn.commit()
+        conn.close()
+        print(f"  [DB] Logged printer message to database: {barcode_value}")
+    except Exception as e:
+        print(f"  [DB_ERROR] Failed to log to database: {e}")
 
 def main():
     parser = argparse.ArgumentParser()
@@ -83,6 +129,9 @@ def main():
     except Exception as e:
         print(f"[ERROR] Connection error: {e}")
         sys.exit(1)
+
+    # Track extracted barcode value for DB logging
+    final_barcode_content = ""
 
     try:
         source_map = {} # {element_id: printer_source_id}
@@ -225,8 +274,31 @@ def main():
                     if barcode_source_ids:
                         source_map[f"barcode_{el['id']}"] = barcode_source_ids
                         print(f"  [OK] Barcode sources for '{el['id']}' created ({len(barcode_source_ids)} sources)")
+
+                        # Build printable representation for DB logging
+                        parts = []
+                        prefixes = ['01', '10', '17']
+                        for idx, sid in enumerate(sids):
+                            src_el = el_by_id.get(sid)
+                            if src_el:
+                                val = src_el.get("content", src_el.get("attribute", {}).get("content", ""))
+                                if ':' in val: val = val.split(':', 1)[1]
+                                val = val.replace('-', '').strip()
+                                parts.append(f"({prefixes[idx]}){val}")
+
+                        if sn_text_el:
+                            sn_val = sn_text_el.get("content") or sn_text_el.get("attribute", {}).get("content", "")
+                            if ":" in sn_val: sn_val = sn_val.split(":", 1)[1]
+                            sn_val = sn_val.replace("-", "").strip()
+                            if sn_val:
+                                parts.append(f"(21){sn_val}")
+
+                        # Add manufacturing date (13) or similar if needed
+                        parts.append(f"(13){datetime.now().strftime('%y%m%d')}")
+                        final_barcode_content = "".join(parts)
                     continue
                 elif not sids and qr_text:
+                    final_barcode_content = qr_text
                     src_payload = {
                         "request_type": "post", "path": "/data/source", "hash": int(time.time()),
                         "type": "text", "name": f"qr_{el.get('id', '')}",
@@ -484,6 +556,10 @@ def main():
             # Log the final JSON structure as requested
             print("\nGenerated JSON same as requested:")
             print(json.dumps(final_payload, indent=2))
+
+            # Log to DB if successful
+            if final_barcode_content:
+                log_to_db(final_barcode_content)
 
             if args.print:
                 print(f"\nStarting print job for '{msg_name}'...")

@@ -16,7 +16,7 @@ import argparse
 import os
 import threading
 import logging
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from pathlib import Path
 
 try:
@@ -30,11 +30,28 @@ try:
 except ImportError:
     psycopg2 = None  # type: ignore
 
+def _load_env_files() -> None:
+    """Load .env from parent (python/) then script dir. First value wins."""
+    script_dir = Path(__file__).resolve().parent
+    for env_path in (script_dir.parent / ".env", script_dir / ".env"):
+        if env_path.exists():
+            with env_path.open(encoding="utf-8") as f:
+                for line in f:
+                    line = line.strip()
+                    if line and not line.startswith("#") and "=" in line:
+                        key, _, val = line.partition("=")
+                        key = key.strip()
+                        val = val.strip().strip('"').strip("'")
+                        if key and key not in os.environ:
+                            os.environ[key] = val
+
 try:
     from dotenv import load_dotenv
-    load_dotenv()
+    script_dir = Path(__file__).resolve().parent
+    load_dotenv(script_dir.parent / ".env")
+    load_dotenv(script_dir / ".env")
 except (ImportError, ModuleNotFoundError):
-    pass  # dotenv optional; env vars still work
+    _load_env_files()
 
 # --- Configuration (override with .env, env vars, or CLI) ---
 CAMERA_IP = os.environ.get("MV40_IP", "192.168.1.14")
@@ -626,6 +643,54 @@ def list_scans(db: DatabaseWriter, limit: int = 15, offset: int = 0) -> None:
         print(json.dumps({"error": str(exc)}))
 
 
+def get_daily_stats(db: DatabaseWriter, days_back: int = 0) -> None:
+    """Fetch count of QR scanned for the given day, and counts of successful/failed scans.
+    days_back=0 means today, days_back=1 means yesterday.
+    """
+    import json
+    logging.getLogger("mv40").setLevel(logging.ERROR)
+    try:
+        db._ensure_connected()
+        with db._conn.cursor(cursor_factory=psycopg2.extras.RealDictCursor) as cur:
+            cur.execute(
+                "SELECT barcode_value FROM scans WHERE scanned_at::date = CURRENT_DATE - %s::integer",
+                (days_back,),
+            )
+            rows = cur.fetchall()
+
+            failed_count = 0
+            successful_count = 0
+
+            for row in rows:
+                val = row["barcode_value"]
+                if not val:
+                    failed_count += 1
+                    continue
+                val = val.strip()
+                if val == "NO CODE FOUND" or val == "":
+                    failed_count += 1
+                else:
+                    parts = [p for p in val.split(";") if p.strip()]
+                    if parts:
+                        successful_count += len(parts)
+                    else:
+                        failed_count += 1
+
+            total_count = successful_count + failed_count
+            target_date = (datetime.now(timezone.utc) - timedelta(days=days_back)).date().isoformat()
+            print(json.dumps({
+                "success": True,
+                "data": {
+                    "date": target_date,
+                    "total": total_count,
+                    "successful": successful_count,
+                    "failed": failed_count
+                }
+            }))
+    except Exception as exc:
+        print(json.dumps({"success": False, "error": str(exc)}))
+
+
 def trigger_capture_and_insert(
     camera: CameraConnection,
     db: DatabaseWriter,
@@ -698,6 +763,14 @@ def main() -> None:
     parser.add_argument(
         "--list-scans", action="store_true",
         help="Query the scans table and print as JSON (paginated)",
+    )
+    parser.add_argument(
+        "--daily-stats", action="store_true",
+        help="Fetch count of QR scanned for given day (successful vs failed) and print as JSON",
+    )
+    parser.add_argument(
+        "--days-back", type=int, default=0,
+        help="With --daily-stats: 0=today (default), 1=yesterday, 2=day before, etc.",
     )
     parser.add_argument(
         "--limit", type=int, default=15,
@@ -792,6 +865,24 @@ def main() -> None:
         )
         with db:
             list_scans(db, limit=args.limit, offset=args.offset)
+        return
+
+    # --daily-stats: DB required, no camera
+    if args.daily_stats:
+        if not args.dbpassword:
+            log.error("Database password required for --daily-stats.")
+            raise SystemExit(1)
+        db = DatabaseWriter(
+            host=args.dbhost,
+            port=args.dbport,
+            dbname=args.dbname,
+            user=args.dbuser,
+            password=args.dbpassword,
+            batch_size=args.batch_size,
+            flush_interval=args.batch_flush_sec,
+        )
+        with db:
+            get_daily_stats(db, days_back=args.days_back)
         return
 
     if not args.dbpassword:
