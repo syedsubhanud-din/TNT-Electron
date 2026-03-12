@@ -350,7 +350,10 @@ export default function CameraDataCapture() {
       if (parsed.success) {
         addLog('success', 'Camera connected successfully');
       } else {
-        addLog('error', `Camera connection failed: ${parsed.error || 'Unknown error'}`);
+        addLog(
+          'error',
+          `Camera connection failed: ${parsed.error || 'Unknown error'}`,
+        );
       }
     } catch (error) {
       addLog('error', `Test failed: ${error.message}`);
@@ -473,7 +476,7 @@ export default function CameraDataCapture() {
             {captureState === 'capturing' && (
               <div className="camera-placeholder active">
                 <iframe
-                  src="http://192.168.1.14/app/svg_demo/index.html"
+                  src="http://169.254.200.254/app/svg_demo/index.html"
                   title="Live Camera Feed"
                   className="live-stream-iframe"
                   frameBorder="0"
@@ -816,10 +819,7 @@ export default function CameraDataCapture() {
           </button>
         </div>
 
-        <div
-          className="history-table-container"
-          onScroll={handleHistoryScroll}
-        >
+        <div className="history-table-container" onScroll={handleHistoryScroll}>
           <table className="history-table">
             <thead>
               <tr>
@@ -837,8 +837,12 @@ export default function CameraDataCapture() {
                   {historyData.map((scan) => (
                     <tr key={scan.id}>
                       <td>{scan.id}</td>
-                      <td className="parsed-cell">{scan.parsed?.gtin || '-'}</td>
-                      <td className="parsed-cell">{scan.parsed?.batch || '-'}</td>
+                      <td className="parsed-cell">
+                        {scan.parsed?.gtin || '-'}
+                      </td>
+                      <td className="parsed-cell">
+                        {scan.parsed?.batch || '-'}
+                      </td>
                       <td className="parsed-cell">
                         {scan.parsed?.mfgDate || '-'}
                       </td>
@@ -849,7 +853,11 @@ export default function CameraDataCapture() {
                   ))}
                   {loadingMore && (
                     <tr>
-                      <td colSpan="5" className="no-data" style={{ padding: '12px' }}>
+                      <td
+                        colSpan="5"
+                        className="no-data"
+                        style={{ padding: '12px' }}
+                      >
                         Loading more...
                       </td>
                     </tr>
@@ -858,7 +866,9 @@ export default function CameraDataCapture() {
               ) : (
                 <tr>
                   <td colSpan="5" className="no-data">
-                    {loadingHistory ? 'Loading...' : 'No scans found in database'}
+                    {loadingHistory
+                      ? 'Loading...'
+                      : 'No scans found in database'}
                   </td>
                 </tr>
               )}

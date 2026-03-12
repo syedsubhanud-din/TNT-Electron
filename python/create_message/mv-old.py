@@ -37,7 +37,7 @@ except (ImportError, ModuleNotFoundError):
     pass  # dotenv optional; env vars still work
 
 # --- Configuration (override with .env, env vars, or CLI) ---
-CAMERA_IP = os.environ.get("MV40_IP", "192.168.1.14")
+CAMERA_IP = os.environ.get("MV40_IP", "169.254.200.254")
 CAMERA_PORT = int(os.environ.get("MV40_PORT", "49211"))
 BARCODE_TAG = os.environ.get("MV40_BARCODE_TAG", "avp/insp1/snapshot1/barcode1/data")
 DB_HOST = os.environ.get("MV40_DB_HOST", "localhost")
@@ -556,7 +556,7 @@ def run_listen_loop(camera: CameraConnection, db: DatabaseWriter) -> None:
                 log.info("SCANNED: %s", line)
                 db.add_scan(line)
                 db.maybe_flush()
-                
+
         except socket.timeout:
             continue
         except OSError as exc:
