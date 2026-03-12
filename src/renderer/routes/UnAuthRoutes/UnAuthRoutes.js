@@ -310,7 +310,7 @@ const Sidenav = ({ isOpen, toggleSidebar }) => {
           <Icons.Print />
           <span className="menu-text">Printing Module</span>
         </NavLink>
-        <NavLink
+        {/* <NavLink
           to="/print-history"
           className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}
           title="Print History"
@@ -341,12 +341,11 @@ const Sidenav = ({ isOpen, toggleSidebar }) => {
         >
           <Icons.Config />
           <span className="menu-text">Camera Configuration</span>
-        </NavLink>
+        </NavLink> */}
         <NavLink
           to="/canvas-print"
           className={({ isActive }) => `menu-item ${isActive ? 'active' : ''}`}
           title="Canvas Print"
-          
         >
           <Icons.Canvas />
           <span className="menu-text">Canvas Print</span>

@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['D:\\SUBHAN\\TNT-Project\\TNT-Electron\\python\\print_label.py'],
+    ['D:\\SUBHAN\\TNT-Project\\TNT-Electron\\python\\create_message\\create_product_label.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='print_label',
+    name='create_product_label',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

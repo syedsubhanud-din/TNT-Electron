@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['D:\\SUBHAN\\TNT-Project\\TNT-Electron\\python\\print_label.py'],
+    ['D:\\SUBHAN\\TNT-Project\\TNT-Electron\\python\\create_message\\mv.py'],
     pathex=[],
     binaries=[],
     datas=[],
@@ -22,7 +22,7 @@ exe = EXE(
     a.binaries,
     a.datas,
     [],
-    name='print_label',
+    name='mv',
     debug=False,
     bootloader_ignore_signals=False,
     strip=False,

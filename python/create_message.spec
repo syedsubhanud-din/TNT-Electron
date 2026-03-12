@@ -2,7 +2,7 @@
 
 
 a = Analysis(
-    ['create_message.py'],
+    ['D:\\SUBHAN\\TNT-Project\\TNT-Electron\\python\\create_message.py'],
     pathex=[],
     binaries=[],
     datas=[],
