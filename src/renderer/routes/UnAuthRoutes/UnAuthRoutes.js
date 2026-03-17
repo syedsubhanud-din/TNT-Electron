@@ -396,6 +396,54 @@ const Footer = () => {
   );
 };
 
+const KeepAliveRoute = ({ path, element }) => {
+  const location = useLocation();
+  const isActive = location.pathname === path;
+  
+  const [hasRendered, setHasRendered] = useState(isActive);
+  
+  useEffect(() => {
+    if (isActive) setHasRendered(true);
+  }, [isActive]);
+
+  if (!hasRendered) return null;
+
+  return (
+    <div style={{ display: isActive ? 'block' : 'none', height: '100%', width: '100%' }}>
+      {element}
+    </div>
+  );
+};
+
+const AppRoutesInner = () => {
+  return (
+    <div className="page-container" style={{ paddingBottom: '60px' }}>
+      <Routes>
+        <Route path="/" element={<Dashboard />} />
+        {/* Placeholder routes so the wildcard doesn't trigger */}
+        <Route path="/printing-module" element={null} />
+        <Route path="/camera-capture" element={null} />
+        <Route path="/canvas-print" element={null} />
+        <Route path="/print-history" element={<PrintHistory />} />
+        <Route path="/reports" element={<Reports />} />
+        <Route path="/sync" element={<DataSynchronization />} />
+        <Route path="/config" element={<CameraConfiguration />} />
+        <Route
+          path="*"
+          element={
+            <div>
+              <h1>Page Under Construction</h1>
+            </div>
+          }
+        />
+      </Routes>
+      <KeepAliveRoute path="/printing-module" element={<PrintingModule />} />
+      <KeepAliveRoute path="/camera-capture" element={<CameraDataCapture />} />
+      <KeepAliveRoute path="/canvas-print" element={<CanvaPrintModule />} />
+    </div>
+  );
+};
+
 export default function UnAuthRoutes() {
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
@@ -411,26 +459,7 @@ export default function UnAuthRoutes() {
         <Sidenav isOpen={isSidebarOpen} toggleSidebar={toggleSidebar} />
         <div className="main-content">
           <Header />
-          <div className="page-container" style={{ paddingBottom: '60px' }}>
-            <Routes>
-              <Route path="/" element={<Dashboard />} />
-              <Route path="/printing-module" element={<PrintingModule />} />
-              <Route path="/camera-capture" element={<CameraDataCapture />} />
-              <Route path="/print-history" element={<PrintHistory />} />
-              <Route path="/reports" element={<Reports />} />
-              <Route path="/sync" element={<DataSynchronization />} />
-              <Route path="/config" element={<CameraConfiguration />} />
-              <Route path="/canvas-print" element={<CanvaPrintModule />} />
-              <Route
-                path="*"
-                element={
-                  <div>
-                    <h1>Page Under Construction</h1>
-                  </div>
-                }
-              />
-            </Routes>
-          </div>
+          <AppRoutesInner />
           <Footer />
         </div>
       </div>
