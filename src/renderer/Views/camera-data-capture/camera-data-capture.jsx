@@ -476,7 +476,7 @@ export default function CameraDataCapture() {
             {captureState === 'capturing' && (
               <div className="camera-placeholder active">
                 <iframe
-                  src="http://169.254.200.254/app/svg_demo/index.html"
+                  src="http://192.168.2.155/app/svg_demo/index.html"
                   title="Live Camera Feed"
                   className="live-stream-iframe"
                   frameBorder="0"

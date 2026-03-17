@@ -90,12 +90,17 @@ ipcMain.handle('run-python', async (_event, scriptName, args, options = {}) => {
   const fullArgs = [...scriptArgs, ...args];
 
   if (options.background) {
-    console.log(`Spawning background process: ${executable} ${fullArgs.join(' ')}`);
+    console.log(
+      `Spawning background process: ${executable} ${fullArgs.join(' ')}`,
+    );
     const os = require('os');
     const crypto = require('crypto');
     const stopFile =
       scriptName.includes('mv.py') || scriptName.includes('mv.exe')
-        ? path.join(os.tmpdir(), `mv40_stop_${crypto.randomBytes(8).toString('hex')}`)
+        ? path.join(
+            os.tmpdir(),
+            `mv40_stop_${crypto.randomBytes(8).toString('hex')}`,
+          )
         : null;
     const env = { ...process.env };
     if (stopFile) env.MV40_STOP_FILE = stopFile;
@@ -109,7 +114,9 @@ ipcMain.handle('run-python', async (_event, scriptName, args, options = {}) => {
         if (line.includes('Flushed')) return;
 
         if (line.includes('Scanned:')) {
-          console.log(`\x1b[32m[Python PID ${child.pid}] stdout: ${line.trim()}\x1b[0m`);
+          console.log(
+            `\x1b[32m[Python PID ${child.pid}] stdout: ${line.trim()}\x1b[0m`,
+          );
         } else {
           console.log(`[Python PID ${child.pid}] stdout: ${line.trim()}`);
         }
@@ -125,7 +132,9 @@ ipcMain.handle('run-python', async (_event, scriptName, args, options = {}) => {
         if (line.includes('Flushed')) return;
 
         if (line.includes('Scanned:')) {
-          console.error(`\x1b[32m[Python PID ${child.pid}] stderr: ${line.trim()}\x1b[0m`);
+          console.error(
+            `\x1b[32m[Python PID ${child.pid}] stderr: ${line.trim()}\x1b[0m`,
+          );
         } else {
           console.error(`[Python PID ${child.pid}] stderr: ${line.trim()}`);
         }
@@ -451,9 +460,6 @@ app
     try {
       await sequelize.authenticate();
       console.log('✅ Database connected successfully.');
-
-      // Crucial: Enable hstore for PostgreSQL to prevent sync errors on User model
-      await sequelize.query('CREATE EXTENSION IF NOT EXISTS hstore;');
 
       await sequelize.sync({ alter: true });
       console.log('✅ Database models synchronized.');

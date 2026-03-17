@@ -55,7 +55,7 @@ except (ImportError, ModuleNotFoundError):
     _load_env_files()
 
 # --- Configuration (override with .env, env vars, or CLI) ---
-CAMERA_IP = os.environ.get("MV40_IP", "169.254.200.254")
+CAMERA_IP = os.environ.get("MV40_IP", "192.168.2.155")
 CAMERA_PORT = int(os.environ.get("MV40_PORT", "49211"))
 BARCODE_TAG = os.environ.get("MV40_BARCODE_TAG", "avp/insp1/snapshot1/barcode1/data")
 

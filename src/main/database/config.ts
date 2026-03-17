@@ -1,24 +1,28 @@
-import { Sequelize } from "sequelize";
-import "dotenv/config";
+import { Sequelize } from 'sequelize';
+import path from 'path';
+import { app } from 'electron';
+import sqlite3 from 'sqlite3';
+import 'dotenv/config';
 
-export const sequelize = new Sequelize(
-  process.env.DB_NAME || 'postgres',
-  process.env.DB_USER || 'postgres',
-  process.env.DB_PASS || 'postgres',
-  {
-    host: process.env.DB_HOST || 'localhost',
-    port: Number(process.env.DB_PORT) || 5432,
-    dialect: "postgres",
-    logging: false,
-  }
-);
+const isProduction = process.env.NODE_ENV === 'production' || app.isPackaged;
+
+const dbPath = isProduction
+  ? path.join(process.resourcesPath, 'database.sqlite')
+  : path.join(__dirname, '../../../database.sqlite');
+
+export const sequelize = new Sequelize({
+  dialect: 'sqlite',
+  dialectModule: sqlite3,
+  storage: dbPath,
+  logging: false,
+});
 
 export const connectDB = async () => {
   try {
     await sequelize.authenticate();
-    console.log("✅ Docker PostgreSQL connected");
+    console.log('✅ SQLite connected at:', dbPath);
   } catch (error: any) {
-    console.error("❌ DB connection failed:", error.message);
+    console.error('❌ DB connection failed:', error.message);
   }
 };
 

@@ -24,9 +24,9 @@ const User = sequelize.define('User', {
     type: DataTypes.STRING,
     allowNull: false,
   },
-  // Example of using hstore if they really want it, but usually it's for dynamic data
+  // Settings stored as JSON for SQLite compatibility
   settings: {
-    type: DataTypes.HSTORE,
+    type: DataTypes.JSON,
     allowNull: true,
   },
 }, {
