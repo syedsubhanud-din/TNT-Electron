@@ -24,11 +24,13 @@ try:
 except ImportError:
     FTP = None  # type: ignore
 
-try:
-    import psycopg2
-    import psycopg2.extras
-except ImportError:
-    psycopg2 = None  # type: ignore
+import sqlite3
+
+# try:
+#     import psycopg2
+#     import psycopg2.extras
+# except ImportError:
+#     psycopg2 = None  # type: ignore
 
 try:
     from dotenv import load_dotenv
@@ -40,11 +42,12 @@ except (ImportError, ModuleNotFoundError):
 CAMERA_IP = os.environ.get("MV40_IP", "169.254.200.254")
 CAMERA_PORT = int(os.environ.get("MV40_PORT", "49211"))
 BARCODE_TAG = os.environ.get("MV40_BARCODE_TAG", "avp/insp1/snapshot1/barcode1/data")
-DB_HOST = os.environ.get("MV40_DB_HOST", "localhost")
-DB_PORT = int(os.environ.get("MV40_DB_PORT", "5432"))
-DB_NAME = os.environ.get("MV40_DB_NAME", "mv40")
-DB_USER = os.environ.get("MV40_DB_USER", "postgres")
-DB_PASSWORD = os.environ.get("MV40_DB_PASSWORD", "")
+DB_PATH = os.environ.get("MV40_DB_PATH", "mv40.db")
+# DB_HOST = os.environ.get("MV40_DB_HOST", "localhost")
+# DB_PORT = int(os.environ.get("MV40_DB_PORT", "5432"))
+# DB_NAME = os.environ.get("MV40_DB_NAME", "mv40")
+# DB_USER = os.environ.get("MV40_DB_USER", "postgres")
+# DB_PASSWORD = os.environ.get("MV40_DB_PASSWORD", "")
 TRIGGER_INTERVAL_SEC = float(os.environ.get("MV40_TRIGGER_INTERVAL", "1.0"))
 BATCH_SIZE = int(os.environ.get("MV40_BATCH_SIZE", "10"))
 BATCH_FLUSH_SEC = float(os.environ.get("MV40_BATCH_FLUSH_SEC", "1.0"))
@@ -321,37 +324,58 @@ class CameraConnection:
 # ---------------------------------------------------------------------------
 
 class DatabaseWriter:
-    """Persistent PostgreSQL connection with batch insert support."""
+    """Persistent SQLite connection with batch insert support."""
 
+    # -- SQLite schema ---------------------------------------------------------
     CREATE_TABLE = """
         CREATE TABLE IF NOT EXISTS scans (
-            id SERIAL PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             barcode_value TEXT NOT NULL,
-            scanned_at TIMESTAMPTZ NOT NULL
+            scanned_at TEXT NOT NULL
         )
     """
 
     CREATE_COMMAND_LOG_TABLE = """
         CREATE TABLE IF NOT EXISTS command_log (
-            id SERIAL PRIMARY KEY,
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
             command TEXT NOT NULL,
             response TEXT,
-            sent_at TIMESTAMPTZ NOT NULL
+            sent_at TEXT NOT NULL
         )
     """
 
+    # -- PostgreSQL schema (commented out) -------------------------------------
+    # CREATE_TABLE = """
+    #     CREATE TABLE IF NOT EXISTS scans (
+    #         id SERIAL PRIMARY KEY,
+    #         barcode_value TEXT NOT NULL,
+    #         scanned_at TIMESTAMPTZ NOT NULL
+    #     )
+    # """
+    #
+    # CREATE_COMMAND_LOG_TABLE = """
+    #     CREATE TABLE IF NOT EXISTS command_log (
+    #         id SERIAL PRIMARY KEY,
+    #         command TEXT NOT NULL,
+    #         response TEXT,
+    #         sent_at TIMESTAMPTZ NOT NULL
+    #     )
+    # """
+
     def __init__(
         self,
-        host: str,
-        port: int,
-        dbname: str,
-        user: str,
-        password: str,
+        db_path: str = "mv40.db",
         batch_size: int = 10,
         flush_interval: float = 1.0,
+        # host: str = "",       # PostgreSQL
+        # port: int = 5432,     # PostgreSQL
+        # dbname: str = "",     # PostgreSQL
+        # user: str = "",       # PostgreSQL
+        # password: str = "",   # PostgreSQL
     ):
-        self._dsn = dict(host=host, port=port, dbname=dbname, user=user, password=password)
-        self._conn = None
+        self._db_path = db_path
+        # self._dsn = dict(host=host, port=port, dbname=dbname, user=user, password=password)
+        self._conn: sqlite3.Connection | None = None
         self._batch: list[tuple[str, str]] = []
         self._batch_size = batch_size
         self._flush_interval = flush_interval
@@ -360,49 +384,85 @@ class DatabaseWriter:
         self._total_inserted = 0
 
     def connect(self) -> None:
-        if psycopg2 is None:
-            raise RuntimeError("Install psycopg2: pip install psycopg2-binary")
         if self._conn is not None:
             self.close()
-        log.info(
-            "Connecting to PostgreSQL %s:%d/%s...",
-            self._dsn["host"], self._dsn["port"], self._dsn["dbname"],
-        )
-        self._conn = psycopg2.connect(**self._dsn)
-        self._conn.autocommit = False
+        log.info("Opening SQLite database at %s...", self._db_path)
+        self._conn = sqlite3.connect(self._db_path, check_same_thread=False)
+        self._conn.isolation_level = None  # autocommit; we commit manually
         self._ensure_table()
 
+        # -- PostgreSQL connect (commented out) ---------------------------------
+        # if psycopg2 is None:
+        #     raise RuntimeError("Install psycopg2: pip install psycopg2-binary")
+        # if self._conn is not None:
+        #     self.close()
+        # log.info(
+        #     "Connecting to PostgreSQL %s:%d/%s...",
+        #     self._dsn["host"], self._dsn["port"], self._dsn["dbname"],
+        # )
+        # self._conn = psycopg2.connect(**self._dsn)
+        # self._conn.autocommit = False
+        # self._ensure_table()
+
     def _ensure_table(self) -> None:
-        with self._conn.cursor() as cur:
-            cur.execute(self.CREATE_TABLE)
-            cur.execute(self.CREATE_COMMAND_LOG_TABLE)
+        cur = self._conn.cursor()
+        cur.execute(self.CREATE_TABLE)
+        cur.execute(self.CREATE_COMMAND_LOG_TABLE)
         self._conn.commit()
         log.info("Tables 'scans' and 'command_log' ready.")
+
+        # -- PostgreSQL _ensure_table (commented out) --------------------------
+        # with self._conn.cursor() as cur:
+        #     cur.execute(self.CREATE_TABLE)
+        #     cur.execute(self.CREATE_COMMAND_LOG_TABLE)
+        # self._conn.commit()
 
     def log_command(self, command: str, response: str | None = None) -> None:
         """Log a camera command and its response to command_log table."""
         ts = datetime.now(timezone.utc).isoformat()
         try:
             self._ensure_connected()
-            with self._conn.cursor() as cur:
-                cur.execute(
-                    "INSERT INTO command_log (command, response, sent_at) VALUES (%s, %s, %s)",
-                    (command.strip(), response, ts),
-                )
+            cur = self._conn.cursor()
+            cur.execute(
+                "INSERT INTO command_log (command, response, sent_at) VALUES (?, ?, ?)",
+                (command.strip(), response, ts),
+            )
             self._conn.commit()
-        except (psycopg2.OperationalError, psycopg2.InterfaceError) as exc:
+        except sqlite3.OperationalError as exc:
             log.debug("Command log failed (non-fatal): %s", exc)
 
+        # -- PostgreSQL log_command (commented out) ----------------------------
+        # try:
+        #     self._ensure_connected()
+        #     with self._conn.cursor() as cur:
+        #         cur.execute(
+        #             "INSERT INTO command_log (command, response, sent_at) VALUES (%s, %s, %s)",
+        #             (command.strip(), response, ts),
+        #         )
+        #     self._conn.commit()
+        # except (psycopg2.OperationalError, psycopg2.InterfaceError) as exc:
+        #     log.debug("Command log failed (non-fatal): %s", exc)
+
     def _ensure_connected(self) -> None:
-        if self._conn is None or self._conn.closed:
+        if self._conn is None:
             self.connect()
             return
         try:
-            with self._conn.cursor() as cur:
-                cur.execute("SELECT 1")
-        except (psycopg2.OperationalError, psycopg2.InterfaceError):
+            self._conn.execute("SELECT 1")
+        except sqlite3.OperationalError:
             log.warning("DB connection lost, reconnecting...")
             self.connect()
+
+        # -- PostgreSQL _ensure_connected (commented out) ----------------------
+        # if self._conn is None or self._conn.closed:
+        #     self.connect()
+        #     return
+        # try:
+        #     with self._conn.cursor() as cur:
+        #         cur.execute("SELECT 1")
+        # except (psycopg2.OperationalError, psycopg2.InterfaceError):
+        #     log.warning("DB connection lost, reconnecting...")
+        #     self.connect()
 
     def add_scan(self, value: str) -> None:
         """Queue a scan for batch insert. Flushes when batch is full."""
@@ -427,22 +487,39 @@ class DatabaseWriter:
         count = len(batch)
         try:
             self._ensure_connected()
-            with self._conn.cursor() as cur:
-                psycopg2.extras.execute_values(
-                    cur,
-                    "INSERT INTO scans (barcode_value, scanned_at) VALUES %s",
-                    batch,
-                    template="(%s, %s)",
-                )
+            cur = self._conn.cursor()
+            cur.executemany(
+                "INSERT INTO scans (barcode_value, scanned_at) VALUES (?, ?)",
+                batch,
+            )
             self._conn.commit()
             self._total_inserted += count
             self._last_flush = time.monotonic()
             log.info("Flushed %d scans (total: %d)", count, self._total_inserted)
-        except (psycopg2.OperationalError, psycopg2.InterfaceError) as exc:
+        except sqlite3.OperationalError as exc:
             log.error("DB flush failed: %s, will retry", exc)
             self._batch = batch + self._batch
             self._conn = None
         return count
+
+        # -- PostgreSQL _flush_locked (commented out) --------------------------
+        # try:
+        #     self._ensure_connected()
+        #     with self._conn.cursor() as cur:
+        #         psycopg2.extras.execute_values(
+        #             cur,
+        #             "INSERT INTO scans (barcode_value, scanned_at) VALUES %s",
+        #             batch,
+        #             template="(%s, %s)",
+        #         )
+        #     self._conn.commit()
+        #     self._total_inserted += count
+        #     self._last_flush = time.monotonic()
+        #     log.info("Flushed %d scans (total: %d)", count, self._total_inserted)
+        # except (psycopg2.OperationalError, psycopg2.InterfaceError) as exc:
+        #     log.error("DB flush failed: %s, will retry", exc)
+        #     self._batch = batch + self._batch
+        #     self._conn = None
 
     def maybe_flush(self) -> int:
         """Flush if flush_interval has elapsed. Call from main loop."""
@@ -462,12 +539,19 @@ class DatabaseWriter:
 
     def close(self) -> None:
         self.flush()
-        if self._conn and not self._conn.closed:
+        if self._conn is not None:
             try:
                 self._conn.close()
             except Exception:
                 pass
         self._conn = None
+
+        # -- PostgreSQL close (commented out) ----------------------------------
+        # if self._conn and not self._conn.closed:
+        #     try:
+        #         self._conn.close()
+        #     except Exception:
+        #         pass
 
     def __enter__(self):
         self.connect()
@@ -611,16 +695,17 @@ def run_once(
 
 def main() -> None:
     parser = argparse.ArgumentParser(
-        description="MV40 barcode scanner -> PostgreSQL.",
+        description="MV40 barcode scanner -> SQLite.",
     )
     parser.add_argument("--ip", default=CAMERA_IP, help="Camera IP")
     parser.add_argument("--port", type=int, default=CAMERA_PORT, help="Camera TCP port")
     parser.add_argument("--tag", default=BARCODE_TAG, help="GET tag for barcode data")
-    parser.add_argument("--dbhost", default=DB_HOST, help="PostgreSQL host")
-    parser.add_argument("--dbport", type=int, default=DB_PORT, help="PostgreSQL port")
-    parser.add_argument("--dbname", default=DB_NAME, help="Database name")
-    parser.add_argument("--dbuser", default=DB_USER, help="Database user")
-    parser.add_argument("--dbpassword", default=DB_PASSWORD, help="Database password")
+    parser.add_argument("--dbpath", default=DB_PATH, help="SQLite database file path")
+    # parser.add_argument("--dbhost", default=DB_HOST, help="PostgreSQL host")
+    # parser.add_argument("--dbport", type=int, default=DB_PORT, help="PostgreSQL port")
+    # parser.add_argument("--dbname", default=DB_NAME, help="Database name")
+    # parser.add_argument("--dbuser", default=DB_USER, help="Database user")
+    # parser.add_argument("--dbpassword", default=DB_PASSWORD, help="Database password")
     parser.add_argument(
         "--interval", type=float, default=TRIGGER_INTERVAL_SEC,
         help="Seconds between triggers in loop mode (default: 1.0)",
@@ -684,22 +769,29 @@ def main() -> None:
             camera.close()
         return
 
-    if not args.dbpassword:
-        log.error(
-            "Database password required. "
-            "Set MV40_DB_PASSWORD env var, use a .env file, or pass --dbpassword."
-        )
-        raise SystemExit(1)
-
     db = DatabaseWriter(
-        host=args.dbhost,
-        port=args.dbport,
-        dbname=args.dbname,
-        user=args.dbuser,
-        password=args.dbpassword,
+        db_path=args.dbpath,
         batch_size=args.batch_size,
         flush_interval=args.batch_flush_sec,
     )
+
+    # -- PostgreSQL password guard (commented out) ----------------------------
+    # if not args.dbpassword:
+    #     log.error(
+    #         "Database password required. "
+    #         "Set MV40_DB_PASSWORD env var, use a .env file, or pass --dbpassword."
+    #     )
+    #     raise SystemExit(1)
+    #
+    # db = DatabaseWriter(
+    #     host=args.dbhost,
+    #     port=args.dbport,
+    #     dbname=args.dbname,
+    #     user=args.dbuser,
+    #     password=args.dbpassword,
+    #     batch_size=args.batch_size,
+    #     flush_interval=args.batch_flush_sec,
+    # )
 
     camera = CameraConnection(args.ip, args.port, args.tag, command_logger=db)
     try:
