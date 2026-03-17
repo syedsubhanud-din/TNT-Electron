@@ -11,7 +11,7 @@ import {
 } from 'recharts';
 import './dashboard.css';
 
-const Dashboard = () => {
+const Dashboard = ({ isActive = true }) => {
   const [stats, setStats] = useState({
     total: 0,
     successful: 0,
@@ -43,9 +43,9 @@ const Dashboard = () => {
       const ai = match[1];
       let value = match[2].trim();
       value = value.replace(/!ERROR/g, '').trim();
-      if (ai === '01') result.gtin = value;
-      else if (ai === '10') result.batch = value;
-      else if (ai === '17') result.mfgDate = value;
+      if (ai === '(01)') result.gtin = value;
+      else if (ai === '(10)') result.batch = value;
+      else if (ai === '(17)') result.mfgDate = value;
     }
     return result;
   };
@@ -346,23 +346,21 @@ const Dashboard = () => {
             </div>
 
             <div className="camera-snapshot-wrapper">
-              <label>Camera Snapshot</label>
+              <label>Live Camera Feed</label>
               <div className="snapshot-box">
                 <div className="live-indicator">
                   <div className="live-dot"></div>
                   LIVE
                 </div>
-                <svg
-                  width="48"
-                  height="48"
-                  viewBox="0 0 24 24"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                >
-                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z"></path>
-                  <circle cx="12" cy="13" r="4"></circle>
-                </svg>
+                {isActive && (
+                  <iframe
+                    src="http://192.168.2.155/app/svg_demo/index.html"
+                    title="Live Camera Feed"
+                    className="live-stream-iframe"
+                    frameBorder="0"
+                    allowFullScreen
+                  ></iframe>
+                )}
               </div>
             </div>
           </div>

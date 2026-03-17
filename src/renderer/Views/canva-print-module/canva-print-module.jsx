@@ -310,7 +310,7 @@ function createElement(type, xCm, yCm) {
 // ─────────────────────────────────────────────────────────────────────────────
 // Main Component
 // ─────────────────────────────────────────────────────────────────────────────
-export default function CanvaPrintModule() {
+export default function CanvaPrintModule({ isActive = true }) {
   const [elements, setElements] = useState([]);
   const [selectedId, setSelectedId] = useState(null);
   const [editingId, setEditingId] = useState(null);

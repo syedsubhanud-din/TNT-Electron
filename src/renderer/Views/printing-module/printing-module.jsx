@@ -3,7 +3,7 @@ import './printing-module.css';
 import { Toaster, toast } from 'react-hot-toast';
 import { QRCodeCanvas } from 'qrcode.react';
 
-export default function PrintingModule() {
+export default function PrintingModule({ isActive = true }) {
   const [formData, setFormData] = useState({
     mfgDate: '',
     expDate: '',

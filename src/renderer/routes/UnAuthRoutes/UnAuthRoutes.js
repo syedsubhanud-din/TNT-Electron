@@ -410,7 +410,7 @@ const KeepAliveRoute = ({ path, element }) => {
 
   return (
     <div style={{ display: isActive ? 'block' : 'none', height: '100%', width: '100%' }}>
-      {element}
+      {React.cloneElement(element, { isActive })}
     </div>
   );
 };
@@ -419,8 +419,8 @@ const AppRoutesInner = () => {
   return (
     <div className="page-container" style={{ paddingBottom: '60px' }}>
       <Routes>
-        <Route path="/" element={<Dashboard />} />
         {/* Placeholder routes so the wildcard doesn't trigger */}
+        <Route path="/" element={null} />
         <Route path="/printing-module" element={null} />
         <Route path="/camera-capture" element={null} />
         <Route path="/canvas-print" element={null} />
@@ -437,6 +437,7 @@ const AppRoutesInner = () => {
           }
         />
       </Routes>
+      <KeepAliveRoute path="/" element={<Dashboard />} />
       <KeepAliveRoute path="/printing-module" element={<PrintingModule />} />
       <KeepAliveRoute path="/camera-capture" element={<CameraDataCapture />} />
       <KeepAliveRoute path="/canvas-print" element={<CanvaPrintModule />} />

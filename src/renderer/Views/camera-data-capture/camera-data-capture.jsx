@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import './camera-data-capture.css';
 
-export default function CameraDataCapture() {
+export default function CameraDataCapture({ isActive = true }) {
   const [captureState, setCaptureState] = useState('idle'); // 'idle', 'capturing', 'paused'
   const [detectionData, setDetectionData] = useState({
     qrCode: 'No detection',
@@ -63,9 +63,9 @@ export default function CameraDataCapture() {
       // (01) -> GTIN Number
       // (10) -> Batch Number
       // (17) -> Manufacturing Date
-      if (ai === '01') result.gtin = value;
-      else if (ai === '10') result.batch = value;
-      else if (ai === '17') result.mfgDate = value;
+      if (ai === '(01)') result.gtin = value;
+      else if (ai === '(10)') result.batch = value;
+      else if (ai === '(17)') result.mfgDate = value;
     }
 
     return result;
@@ -475,13 +475,15 @@ export default function CameraDataCapture() {
 
             {captureState === 'capturing' && (
               <div className="camera-placeholder active">
-                <iframe
-                  src="http://192.168.2.155/app/svg_demo/index.html"
-                  title="Live Camera Feed"
-                  className="live-stream-iframe"
-                  frameBorder="0"
-                  allowFullScreen
-                ></iframe>
+                {isActive && (
+                  <iframe
+                    src="http://192.168.2.155/app/svg_demo/index.html"
+                    title="Live Camera Feed"
+                    className="live-stream-iframe"
+                    frameBorder="0"
+                    allowFullScreen
+                  ></iframe>
+                )}
                 <div className="detection-box"></div>
               </div>
             )}
