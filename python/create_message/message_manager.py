@@ -233,7 +233,7 @@ def print_message_list(messages: List[Dict[str, Any]]):
 def main():
     """Main function with example usage"""
     # Default printer IP and port
-    DEFAULT_IP = "192.168.1.22"
+    DEFAULT_IP = "192.168.2.22"
     DEFAULT_PORT = 9944
 
     if len(sys.argv) < 2:

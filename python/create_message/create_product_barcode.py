@@ -10,7 +10,7 @@ import json
 import time
 import sys
 
-PRINTER_IP = "192.168.1.22"
+PRINTER_IP = "192.168.2.22"
 PRINTER_PORT = 9944
 
 

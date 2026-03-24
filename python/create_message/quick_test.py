@@ -1,13 +1,13 @@
 #!/usr/bin/env python3
 """
 Quick test script for Sojet Printer Message Manager
-Uses IP: 192.168.1.22, Port: 9944
+Uses IP: 192.168.2.22, Port: 9944
 """
 
 from message_manager import SojetPrinterClient, print_message_list
 
 # Printer configuration
-PRINTER_IP = "192.168.1.22"
+PRINTER_IP = "192.168.2.22"
 PRINTER_PORT = 9944
 
 def main():

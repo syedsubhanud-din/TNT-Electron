@@ -39,7 +39,7 @@ except (ImportError, ModuleNotFoundError):
     pass  # dotenv optional; env vars still work
 
 # --- Configuration (override with .env, env vars, or CLI) ---
-CAMERA_IP = os.environ.get("MV40_IP", "192.168.2.155")
+CAMERA_IP = os.environ.get("MV40_IP", "192.168.2.156")
 CAMERA_PORT = int(os.environ.get("MV40_PORT", "49211"))
 BARCODE_TAG = os.environ.get("MV40_BARCODE_TAG", "avp/insp1/snapshot1/barcode1/data")
 DB_PATH = os.environ.get("MV40_DB_PATH", "mv40.db")

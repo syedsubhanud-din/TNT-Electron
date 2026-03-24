@@ -15,6 +15,7 @@ $scripts = @(
     "print_label.py",
     "create_message/mv.py",
     "create_message/create_product_label.py",
+    "create_message/create_dynamic_label.py",
     "create_message/run_command.py"
 )
 

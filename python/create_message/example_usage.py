@@ -78,7 +78,7 @@ def example_modify_message(client: SojetPrinterClient, message_id: int, new_name
 def main():
     """Main example function"""
     # Printer IP address and port
-    PRINTER_IP = "192.168.1.22"
+    PRINTER_IP = "192.168.2.22"
     PRINTER_PORT = 9944
 
     print("Sojet Printer Message Manager - Example Usage")

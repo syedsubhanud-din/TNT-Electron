@@ -477,7 +477,7 @@ export default function CameraDataCapture({ isActive = true }) {
               <div className="camera-placeholder active">
                 {isActive && (
                   <iframe
-                    src="http://192.168.2.155/app/svg_demo/index.html"
+                    src="http://192.168.2.156/app/svg_demo/index.html"
                     title="Live Camera Feed"
                     className="live-stream-iframe"
                     frameBorder="0"

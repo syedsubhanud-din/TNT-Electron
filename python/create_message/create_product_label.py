@@ -28,7 +28,7 @@ import sys
 
 from generate_label_config import build_qr_string, build_qr_parts, mmyyyy_to_display
 
-PRINTER_IP = "192.168.1.22"
+PRINTER_IP = "192.168.2.22"
 PRINTER_PORT = 9944
 
 # --- Barcode source presets: user selects which config to use ---

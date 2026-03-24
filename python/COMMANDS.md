@@ -1,6 +1,6 @@
 # Sojet Printer Commands Reference
 
-**IP:** 192.168.1.22  
+**IP:** 192.168.2.22  
 **Port:** 9944  
 **Protocol:** TCP-JSON (messages end with `\r\n`)
 

@@ -39,16 +39,20 @@ ipcMain.on('ipc-example', async (event, arg) => {
 const getPythonExecutable = async (pythonDir: string) => {
   const fs = require('fs');
 
-  const venvPython =
-    process.platform === 'win32'
-      ? path.join(pythonDir, 'venv', 'Scripts', 'python.exe')
-      : path.join(pythonDir, 'venv', 'bin', 'python');
+  // When packaged, skip venv: it embeds the build machine's Python path (e.g. C:\...\Python313\python.exe)
+  // which fails with "did not find executable" when the app is installed elsewhere.
+  if (!app.isPackaged) {
+    const venvPython =
+      process.platform === 'win32'
+        ? path.join(pythonDir, 'venv', 'Scripts', 'python.exe')
+        : path.join(pythonDir, 'venv', 'bin', 'python');
 
-  if (fs.existsSync(venvPython)) {
-    return venvPython;
+    if (fs.existsSync(venvPython)) {
+      return venvPython;
+    }
   }
 
-  // Fallback to system python
+  // Fallback to system python (from PATH)
   if (process.platform === 'win32') {
     return 'python';
   }
@@ -308,7 +312,7 @@ ipcMain.handle('get-printer-config', async () => {
   } catch (error) {
     console.error('Error reading printer config:', error);
   }
-  return { printer_ip: '192.168.1.22', printer_port: 9944 };
+  return { printer_ip: '192.168.2.22', printer_port: 9944 };
 });
 
 ipcMain.handle('save-printer-config', async (_event, config) => {

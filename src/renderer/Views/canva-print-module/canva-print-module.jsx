@@ -324,7 +324,7 @@ export default function CanvaPrintModule({ isActive = true }) {
   const [zoom, setZoom] = useState(4);
   const [canvasSize, setCanvasSize] = useState({ w: 10, h: 300 / 190 });
   const [printerConfig, setPrinterConfig] = useState({
-    printer_ip: '192.168.1.22',
+    printer_ip: '192.168.2.22',
     printer_port: 9944,
   });
 

@@ -21,7 +21,7 @@ except ImportError:
     psycopg2 = None
 
 # Constants for Sojet-style printers
-PRINTER_IP = "192.168.1.22"
+PRINTER_IP = "192.168.2.22"
 PRINTER_PORT = 9944
 # Scale factor: cm to printer dots
 # Based on working payload: 1.8cm -> 280 dots => 155.56 dots/cm (approx 400 DPI)
@@ -84,7 +84,7 @@ def main():
     parser.add_argument("--payload", help="JSON payload of elements from Canva")
     parser.add_argument("--name", help="Message name", default="")
     parser.add_argument("--print", action="store_true", help="Start printing immediately")
-    parser.add_argument("--ip", default="192.168.1.22", help="Printer IP address")
+    parser.add_argument("--ip", default="192.168.2.22", help="Printer IP address")
     parser.add_argument("--port", type=int, default=9944, help="Printer port")
     args = parser.parse_args()
 
@@ -284,7 +284,8 @@ def main():
                                 val = src_el.get("content", src_el.get("attribute", {}).get("content", ""))
                                 if ':' in val: val = val.split(':', 1)[1]
                                 val = val.replace('-', '').strip()
-                                parts.append(f"({prefixes[idx]}){val}")
+                                prefix = prefixes[idx] if idx < len(prefixes) else ''
+                                parts.append(f"({prefix}){val}")
 
                         if sn_text_el:
                             sn_val = sn_text_el.get("content") or sn_text_el.get("attribute", {}).get("content", "")
