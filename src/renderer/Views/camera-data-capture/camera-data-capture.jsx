@@ -1,5 +1,32 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import './camera-data-capture.css';
+
+const CAMERA_SETTINGS_KEY = 'camera-data-capture.settings';
+
+function loadCameraSettings() {
+  try {
+    const raw = localStorage.getItem(CAMERA_SETTINGS_KEY);
+    if (raw) {
+      const o = JSON.parse(raw);
+      return {
+        ip: typeof o.ip === 'string' && o.ip.trim() ? o.ip.trim() : '192.168.2.156',
+        tcpPort:
+          Number.isFinite(Number(o.tcpPort)) && Number(o.tcpPort) > 0
+            ? Number(o.tcpPort)
+            : 49211,
+      };
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return { ip: '192.168.2.156', tcpPort: 49211 };
+}
+
+function buildStreamUrl(ip) {
+  const host = (ip || '').trim();
+  if (!host) return '';
+  return `http://${host}/app/svg_demo/index.html`;
+}
 
 export default function CameraDataCapture({ isActive = true }) {
   const [captureState, setCaptureState] = useState('idle'); // 'idle', 'capturing', 'paused'
@@ -25,6 +52,106 @@ export default function CameraDataCapture({ isActive = true }) {
   const [loadingMore, setLoadingMore] = useState(false);
   const [hasMoreScans, setHasMoreScans] = useState(true);
   const PAGE_SIZE = 15;
+
+  const [cameraCfg, setCameraCfg] = useState(loadCameraSettings);
+  const [testingConnection, setTestingConnection] = useState(false);
+
+  useEffect(() => {
+    localStorage.setItem(CAMERA_SETTINGS_KEY, JSON.stringify(cameraCfg));
+  }, [cameraCfg]);
+
+  const mvConnectionArgs = useMemo(
+    () => [
+      '--ip',
+      cameraCfg.ip.trim() || '192.168.2.156',
+      '--port',
+      String(
+        Number.isFinite(Number(cameraCfg.tcpPort)) &&
+          Number(cameraCfg.tcpPort) > 0
+          ? Number(cameraCfg.tcpPort)
+          : 49211,
+      ),
+    ],
+    [cameraCfg.ip, cameraCfg.tcpPort],
+  );
+
+  const streamUrl = useMemo(
+    () => buildStreamUrl(cameraCfg.ip),
+    [cameraCfg.ip],
+  );
+
+  const [cameraSettingsOpen, setCameraSettingsOpen] = useState(false);
+  const [cameraDraft, setCameraDraft] = useState({
+    ip: '',
+    tcpPort: 49211,
+  });
+
+  const openCameraSettings = () => {
+    setCameraDraft({
+      ip: cameraCfg.ip,
+      tcpPort: cameraCfg.tcpPort,
+    });
+    setCameraSettingsOpen(true);
+  };
+
+  const closeCameraSettings = () => setCameraSettingsOpen(false);
+
+  const saveCameraSettings = () => {
+    setCameraCfg({
+      ip: cameraDraft.ip.trim() || '192.168.2.156',
+      tcpPort:
+        Number.isFinite(Number(cameraDraft.tcpPort)) &&
+        Number(cameraDraft.tcpPort) > 0
+          ? Number(cameraDraft.tcpPort)
+          : 49211,
+    });
+    setCameraSettingsOpen(false);
+  };
+
+  const draftMvConnectionArgs = () => [
+    '--ip',
+    cameraDraft.ip.trim() || '192.168.2.156',
+    '--port',
+    String(
+      Number.isFinite(Number(cameraDraft.tcpPort)) &&
+        Number(cameraDraft.tcpPort) > 0
+        ? Number(cameraDraft.tcpPort)
+        : 49211,
+    ),
+  ];
+
+  const handleTestCameraDraft = async () => {
+    setTestingConnection(true);
+    addLog('info', 'Testing camera connection...');
+    try {
+      const result = await window.electron.runPython('create_message/mv.py', [
+        ...draftMvConnectionArgs(),
+        '--test-connection',
+      ]);
+      const parsed = JSON.parse(result);
+      if (parsed.success) {
+        addLog('success', 'Camera connected successfully');
+      } else {
+        addLog(
+          'error',
+          `Camera connection failed: ${parsed.error || 'Unknown error'}`,
+        );
+      }
+    } catch (error) {
+      addLog('error', `Test failed: ${error.message}`);
+    } finally {
+      setTestingConnection(false);
+    }
+  };
+
+  useEffect(() => {
+    if (!cameraSettingsOpen) return;
+    const onKey = (e) => {
+      if (e.key === 'Escape') closeCameraSettings();
+    };
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [cameraSettingsOpen]);
 
   const addLog = (type, message) => {
     const now = new Date();
@@ -197,7 +324,15 @@ export default function CameraDataCapture({ isActive = true }) {
 
       const result = await window.electron.runPython(
         'create_message/mv.py',
-        ['--interval', '0.2', '--batch-size', '10', '--batch-flush-sec', '1'],
+        [
+          ...mvConnectionArgs,
+          '--interval',
+          '0.2',
+          '--batch-size',
+          '10',
+          '--batch-flush-sec',
+          '1',
+        ],
         { background: true },
       );
       console.log('result Data: ', result);
@@ -243,7 +378,7 @@ export default function CameraDataCapture({ isActive = true }) {
 
       const result = await window.electron.runPython(
         'create_message/mv.py',
-        ['--listen'],
+        [...mvConnectionArgs, '--listen'],
         { background: true },
       );
 
@@ -318,6 +453,7 @@ export default function CameraDataCapture({ isActive = true }) {
     addLog('info', 'Running autofocus...');
     try {
       const result = await window.electron.runPython('create_message/mv.py', [
+        ...mvConnectionArgs,
         '--autofocus',
       ]);
       const parsed = JSON.parse(result);
@@ -338,12 +474,12 @@ export default function CameraDataCapture({ isActive = true }) {
     console.log('Manual override triggered...');
   };
 
-  const [testingConnection, setTestingConnection] = useState(false);
   const handleTestConnection = async () => {
     setTestingConnection(true);
     addLog('info', 'Testing camera connection...');
     try {
       const result = await window.electron.runPython('create_message/mv.py', [
+        ...mvConnectionArgs,
         '--test-connection',
       ]);
       const parsed = JSON.parse(result);
@@ -372,6 +508,7 @@ export default function CameraDataCapture({ isActive = true }) {
     }
     try {
       const result = await window.electron.runPython('create_message/mv.py', [
+        ...mvConnectionArgs,
         '--list-scans',
         '--limit',
         String(PAGE_SIZE),
@@ -445,12 +582,34 @@ export default function CameraDataCapture({ isActive = true }) {
         <div className="camera-panel">
           <div className="panel-header">
             <h3>Live Camera Feed</h3>
-            {captureState === 'capturing' && (
+            <div className="panel-header-actions">
+              <button
+                type="button"
+                className="btn-camera-settings"
+                onClick={openCameraSettings}
+                title="Camera IP and port"
+              >
+                <svg
+                  width="18"
+                  height="18"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  aria-hidden
+                >
+                  <circle cx="12" cy="12" r="3"></circle>
+                  <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"></path>
+                </svg>
+                IP &amp; Port
+              </button>
+              {captureState === 'capturing' && (
               <span className="recording-indicator">
                 <span className="recording-dot"></span>
                 RECORDING
               </span>
-            )}
+              )}
+            </div>
           </div>
 
           <div className={`camera-feed ${captureState}`}>
@@ -475,9 +634,10 @@ export default function CameraDataCapture({ isActive = true }) {
 
             {captureState === 'capturing' && (
               <div className="camera-placeholder active">
-                {isActive && (
+                {isActive && streamUrl && (
                   <iframe
-                    src="http://192.168.2.156/app/svg_demo/index.html"
+                    key={streamUrl}
+                    src={streamUrl}
                     title="Live Camera Feed"
                     className="live-stream-iframe"
                     frameBorder="0"
@@ -878,6 +1038,104 @@ export default function CameraDataCapture({ isActive = true }) {
           </table>
         </div>
       </div>
+
+      {cameraSettingsOpen && (
+        <div
+          className="camera-settings-overlay"
+          role="presentation"
+          onClick={(e) => {
+            if (e.target === e.currentTarget) closeCameraSettings();
+          }}
+        >
+          <div
+            className="camera-settings-dialog"
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="camera-settings-title"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <div className="camera-settings-top">
+              <span id="camera-settings-title">Camera Settings</span>
+              <button
+                type="button"
+                className="camera-settings-x"
+                onClick={closeCameraSettings}
+                aria-label="Close"
+              >
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            </div>
+            <div className="camera-settings-body">
+              <div className="camera-settings-field-row">
+                <label htmlFor="camera-settings-ip">Camera IP</label>
+                <input
+                  id="camera-settings-ip"
+                  className="camera-settings-input"
+                  type="text"
+                  value={cameraDraft.ip}
+                  onChange={(e) =>
+                    setCameraDraft((d) => ({ ...d, ip: e.target.value }))
+                  }
+                  placeholder="192.168.2.156"
+                  spellCheck={false}
+                  autoComplete="off"
+                  autoFocus
+                />
+              </div>
+              <div className="camera-settings-field-row">
+                <label htmlFor="camera-settings-port">Camera Port</label>
+                <input
+                  id="camera-settings-port"
+                  className="camera-settings-input"
+                  type="number"
+                  min={1}
+                  max={65535}
+                  value={cameraDraft.tcpPort}
+                  onChange={(e) => {
+                    const n = parseInt(e.target.value, 10);
+                    setCameraDraft((d) => ({
+                      ...d,
+                      tcpPort: Number.isFinite(n) ? n : d.tcpPort,
+                    }));
+                  }}
+                  placeholder="49211"
+                />
+              </div>
+              <button
+                type="button"
+                className="camera-settings-btn-test"
+                onClick={handleTestCameraDraft}
+                disabled={testingConnection}
+              >
+                {testingConnection ? 'Testing...' : 'Test Connection'}
+              </button>
+              <p className="camera-settings-hint">
+                Ensure your computer is on the same network as the camera.
+              </p>
+            </div>
+            <div className="camera-settings-footer">
+              <button
+                type="button"
+                className="camera-settings-btn-primary"
+                onClick={saveCameraSettings}
+              >
+                Save &amp; Close
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
