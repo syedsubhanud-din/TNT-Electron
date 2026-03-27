@@ -289,7 +289,7 @@ export default function PrintingModule({ isActive = true }) {
   };
 
   // Generate QR Content String for preview
-  // GS1 format: (01)GTIN (17)EXP (10)BATCH (21)SN
+  // GS1 format: 01GTIN 17EXP 10BATCH (21)SN
   // Using \x1D as the GS separator between variable-length fields
   const qrValue = `01${formData.gtin}17${formatDateToYYMMDD(formData.expDate)}10${formData.batch}\x1D21${formData.serialNumber}`;
 

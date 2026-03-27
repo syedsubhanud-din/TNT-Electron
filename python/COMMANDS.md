@@ -281,7 +281,7 @@ python create_product_label.py
 
 **QR content format** (`-f`):
 
-- `gs1` (default): GS1 Application Identifiers, e.g. `(01)08961101532710(11)012026(17)012029(10)153A26(21)...(99)TZ 11H178`
+- `gs1` (default): GS1 Application Identifiers, e.g. `0108961101532710(11)0120261701202910153A26(21)...(99)TZ 11H178`
 - `pipe`: `val1|val2|val3|...`
 - `simple`: concatenated with no delimiters
 

@@ -38,15 +38,55 @@ const Dashboard = ({ isActive = true }) => {
       return result;
     }
 
-    const matches = barcode.matchAll(/\((\d{2,4})\)([^()]+)/g);
-    for (const match of matches) {
-      const ai = match[1];
-      let value = match[2].trim();
-      value = value.replace(/!ERROR/g, '').trim();
-      if (ai === '(01)') result.gtin = value;
-      else if (ai === '(10)') result.batch = value;
-      else if (ai === '(17)') result.mfgDate = value;
+    // 1. Handle format with parentheses: (01)...(10)...
+    if (barcode.includes('(') && barcode.includes(')')) {
+      const matches = Array.from(barcode.matchAll(/\((\d{2,4})\)([^()]+)/g));
+      if (matches.length > 0) {
+        for (let i = 0; i < matches.length; i++) {
+          const match = matches[i];
+          const ai = match[1];
+          let value = match[2].trim();
+          value = value.replace(/!ERROR/g, '').trim();
+          if (ai === '01') result.gtin = '01' + value;
+          else if (ai === '10') {
+            const hasNext = i < matches.length - 1;
+            result.batch = '10' + value + (hasNext ? '\u001d' : '');
+          } else if (ai === '17') result.mfgDate = '17' + value;
+        }
+        return result;
+      }
     }
+
+    // 2. Handle raw GS1 format (no parentheses): 01...10...17...
+    const cleanBarcode = barcode.replace(/!ERROR/g, '').trim();
+    const parts = cleanBarcode.split(/\u001d/);
+
+    parts.forEach((part, index) => {
+      let segment = part;
+      const hasSeparator = index < parts.length - 1;
+
+      while (segment.length >= 2) {
+        if (segment.startsWith('01') && segment.length >= 16) {
+          result.gtin = segment.substring(0, 16);
+          segment = segment.substring(16);
+        } else if (segment.startsWith('17') && segment.length >= 8) {
+          result.mfgDate = segment.substring(0, 8);
+          segment = segment.substring(8);
+        } else if (segment.startsWith('10')) {
+          const next17 = segment.indexOf('17', 2);
+          if (next17 !== -1 && segment.length - next17 === 8) {
+            result.batch = segment.substring(0, next17) + '\u001d';
+            result.mfgDate = segment.substring(next17);
+          } else {
+            result.batch = segment + (hasSeparator ? '\u001d' : '');
+          }
+          segment = '';
+        } else {
+          segment = segment.substring(1);
+        }
+      }
+    });
+
     return result;
   };
 

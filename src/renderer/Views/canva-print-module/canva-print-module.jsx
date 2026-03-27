@@ -349,7 +349,7 @@ export default function CanvaPrintModule({ isActive = true }) {
     (el) => {
       if (el.type !== 'barcode') return '';
       if (el.sourceElementIds && el.sourceElementIds.length > 0) {
-        const prefixes = ['(01)', '(10)', '(17)'];
+        const prefixes = ['01', '10', '17'];
         return el.sourceElementIds
           .map((id, index) => {
             const src = elements.find((e) => e.id === id);
@@ -368,7 +368,8 @@ export default function CanvaPrintModule({ isActive = true }) {
             value = value.replace(/-/g, '');
             // Add prefix based on selection order
             const prefix = prefixes[index] || '';
-            return prefix + value;
+            const hasNext = index < el.sourceElementIds.length - 1;
+            return prefix + value + (prefix === '10' && hasNext ? '\u001d' : '');
           })
           .filter((t) => t.length > 0)
           .join('');
@@ -690,7 +691,7 @@ export default function CanvaPrintModule({ isActive = true }) {
             radix: {
               hash: 24129224,
               name: 'dec',
-              radix_digits: '(01)23456789',
+              radix_digits: '0123456789',
             },
             locale: 'default',
             items: [
@@ -1409,17 +1410,23 @@ export default function CanvaPrintModule({ isActive = true }) {
               <div className="cpm-preview-box">
                 {qrSelectedSources.length > 0
                   ? (() => {
-                      const prefixes = ['(01)', '(10)', '(17)'];
+                      const prefixes = ['01', '10', '17'];
                       return qrSelectedSources
                         .map((id, index) => {
-                          let value =
-                            elements.find((e) => e.id === id)?.content || '';
+                          const src = elements.find((e) => e.id === id);
+                          if (!src) return '';
+                          let value = src.content || '';
                           if (value.includes(':')) {
                             value = value.split(':').slice(1).join(':');
                           }
                           value = value.replace(/-/g, '');
                           const prefix = prefixes[index] || '';
-                          return prefix + value;
+                          const hasNext = index < qrSelectedSources.length - 1;
+                          return (
+                            prefix +
+                            value +
+                            (prefix === '10' && hasNext ? '\u001d' : '')
+                          );
                         })
                         .join('');
                     })()

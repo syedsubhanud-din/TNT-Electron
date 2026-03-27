@@ -5,6 +5,7 @@
     /* Use min-height to ensure it takes at least full height but grows with content */
     min-height: 100%;
     position: relative;
+    padding-bottom: 60px;
 }
 
 .printing-module-wrapper .page-header {
@@ -238,7 +239,7 @@
     flex: 1;
     min-width: 350px;
     /* Optional: make it sticky if the left side is long, so preview is always visible */
-    /* position: sticky; 
+    /* position: sticky;
     top: 20px; */
     height: fit-content;
     /* Only take necessary height */

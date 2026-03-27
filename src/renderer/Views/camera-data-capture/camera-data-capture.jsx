@@ -9,7 +9,10 @@ function loadCameraSettings() {
     if (raw) {
       const o = JSON.parse(raw);
       return {
-        ip: typeof o.ip === 'string' && o.ip.trim() ? o.ip.trim() : '192.168.2.156',
+        ip:
+          typeof o.ip === 'string' && o.ip.trim()
+            ? o.ip.trim()
+            : '192.168.2.156',
         tcpPort:
           Number.isFinite(Number(o.tcpPort)) && Number(o.tcpPort) > 0
             ? Number(o.tcpPort)
@@ -75,10 +78,7 @@ export default function CameraDataCapture({ isActive = true }) {
     [cameraCfg.ip, cameraCfg.tcpPort],
   );
 
-  const streamUrl = useMemo(
-    () => buildStreamUrl(cameraCfg.ip),
-    [cameraCfg.ip],
-  );
+  const streamUrl = useMemo(() => buildStreamUrl(cameraCfg.ip), [cameraCfg.ip]);
 
   const [cameraSettingsOpen, setCameraSettingsOpen] = useState(false);
   const [cameraDraft, setCameraDraft] = useState({
@@ -170,30 +170,65 @@ export default function CameraDataCapture({ isActive = true }) {
       !barcode ||
       barcode === 'No detection' ||
       barcode === 'Scanning...' ||
-      barcode === 'Searching...'
+      barcode === 'Searching...' ||
+      barcode === 'NO CODE FOUND' ||
+      barcode.includes('<error>') ||
+      barcode.includes('[Insp1]')
     ) {
       return result;
     }
 
-    // Pattern to match (XX) followed by text until the next (XX) or end of string
-    // This handles codes like (01)08964001713210(10)T24029(17)251210
-    const matches = barcode.matchAll(/\((\d{2,4})\)([^()]+)/g);
+    // Strip !ERROR if it exists elsewhere
+    const cleanBarcode = barcode.replace(/!ERROR/g, '').trim();
 
-    for (const match of matches) {
-      const ai = match[1];
-      let value = match[2].trim();
-
-      // Strip "!ERROR" if it exists in the value
-      value = value.replace(/!ERROR/g, '').trim();
-
-      // Updated mapping based on user request:
-      // (01) -> GTIN Number
-      // (10) -> Batch Number
-      // (17) -> Manufacturing Date
-      if (ai === '(01)') result.gtin = value;
-      else if (ai === '(10)') result.batch = value;
-      else if (ai === '(17)') result.mfgDate = value;
+    // 1. Handle format with parentheses: (01)...(10)...
+    if (cleanBarcode.includes('(') && cleanBarcode.includes(')')) {
+      const matches = Array.from(
+        cleanBarcode.matchAll(/\((\d{2,4})\)([^()]+)/g),
+      );
+      if (matches.length > 0) {
+        for (let i = 0; i < matches.length; i++) {
+          const match = matches[i];
+          const ai = match[1];
+          let value = match[2].trim();
+          if (ai === '01') result.gtin = '01' + value;
+          else if (ai === '10') {
+            const hasNext = i < matches.length - 1;
+            result.batch = '10' + value + (hasNext ? '\u001d' : '');
+          } else if (ai === '17') result.mfgDate = '17' + value;
+        }
+        if (result.gtin || result.batch || result.mfgDate) return result;
+      }
     }
+
+    // 2. Handle raw GS1 format (no parentheses): 01...10...17...
+    const parts = cleanBarcode.split(/\u001d/);
+
+    parts.forEach((part, index) => {
+      let segment = part;
+      const hasSeparator = index < parts.length - 1;
+
+      while (segment.length >= 2) {
+        if (segment.startsWith('01') && segment.length >= 16) {
+          result.gtin = segment.substring(0, 16);
+          segment = segment.substring(16);
+        } else if (segment.startsWith('17') && segment.length >= 8) {
+          result.mfgDate = segment.substring(0, 8);
+          segment = segment.substring(8);
+        } else if (segment.startsWith('10')) {
+          const next17 = segment.indexOf('17', 2);
+          if (next17 !== -1 && segment.length - next17 === 8) {
+            result.batch = segment.substring(0, next17) + '\u001d';
+            result.mfgDate = segment.substring(next17);
+          } else {
+            result.batch = segment + (hasSeparator ? '\u001d' : '');
+          }
+          segment = '';
+        } else {
+          segment = segment.substring(1);
+        }
+      }
+    });
 
     return result;
   };
@@ -604,10 +639,10 @@ export default function CameraDataCapture({ isActive = true }) {
                 IP &amp; Port
               </button>
               {captureState === 'capturing' && (
-              <span className="recording-indicator">
-                <span className="recording-dot"></span>
-                RECORDING
-              </span>
+                <span className="recording-indicator">
+                  <span className="recording-dot"></span>
+                  RECORDING
+                </span>
               )}
             </div>
           </div>
