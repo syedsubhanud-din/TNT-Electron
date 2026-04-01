@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import {
   BarChart,
   Bar,
@@ -11,6 +11,30 @@ import {
 } from 'recharts';
 import './dashboard.css';
 
+const CAMERA_SETTINGS_KEY = 'camera-data-capture.settings';
+
+function loadCameraSettings() {
+  try {
+    const raw = localStorage.getItem(CAMERA_SETTINGS_KEY);
+    if (raw) {
+      const o = JSON.parse(raw);
+      return {
+        ip:
+          typeof o.ip === 'string' && o.ip.trim()
+            ? o.ip.trim()
+            : '192.168.2.156',
+        tcpPort:
+          Number.isFinite(Number(o.tcpPort)) && Number(o.tcpPort) > 0
+            ? Number(o.tcpPort)
+            : 49211,
+      };
+    }
+  } catch (_) {
+    /* ignore */
+  }
+  return { ip: '192.168.2.156', tcpPort: 49211 };
+}
+
 const Dashboard = ({ isActive = true }) => {
   const [stats, setStats] = useState({
     total: 0,
@@ -20,6 +44,35 @@ const Dashboard = ({ isActive = true }) => {
   });
   const [weeklyStats, setWeeklyStats] = useState([]);
   const [records, setRecords] = useState([]);
+
+  const [cameraCfg, setCameraCfg] = useState(loadCameraSettings);
+
+  useEffect(() => {
+    if (isActive) {
+      setCameraCfg(loadCameraSettings());
+    }
+  }, [isActive]);
+
+  const mvConnectionArgs = useMemo(
+    () => [
+      '--ip',
+      cameraCfg.ip.trim() || '192.168.2.156',
+      '--port',
+      String(
+        Number.isFinite(Number(cameraCfg.tcpPort)) &&
+          Number(cameraCfg.tcpPort) > 0
+          ? Number(cameraCfg.tcpPort)
+          : 49211,
+      ),
+    ],
+    [cameraCfg.ip, cameraCfg.tcpPort],
+  );
+
+  const streamUrl = useMemo(() => {
+    const host = (cameraCfg.ip || '').trim();
+    if (!host) return '';
+    return `http://${host}/app/svg_demo/index.html`;
+  }, [cameraCfg.ip]);
 
   const parseBarcode = (barcode) => {
     const result = {
@@ -96,6 +149,7 @@ const Dashboard = ({ isActive = true }) => {
     const fetchStats = async () => {
       try {
         const result = await window.electron.runPython('create_message/mv.py', [
+          ...mvConnectionArgs,
           '--daily-stats',
         ]);
         const parsed = JSON.parse(result);
@@ -115,6 +169,7 @@ const Dashboard = ({ isActive = true }) => {
     const fetchRecords = async () => {
       try {
         const result = await window.electron.runPython('create_message/mv.py', [
+          ...mvConnectionArgs,
           '--list-scans',
           '--limit',
           '10',
@@ -144,6 +199,7 @@ const Dashboard = ({ isActive = true }) => {
         const days = [6, 5, 4, 3, 2, 1, 0];
         const requests = days.map((d) =>
           window.electron.runPython('create_message/mv.py', [
+            ...mvConnectionArgs,
             '--daily-stats',
             '--days-back',
             String(d),
@@ -186,7 +242,7 @@ const Dashboard = ({ isActive = true }) => {
       clearInterval(interval);
       clearInterval(historyInterval);
     };
-  }, []);
+  }, [mvConnectionArgs]);
 
   const topStats = [
     {
@@ -392,9 +448,9 @@ const Dashboard = ({ isActive = true }) => {
                   <div className="live-dot"></div>
                   LIVE
                 </div>
-                {isActive && (
+                {isActive && streamUrl && (
                   <iframe
-                    src="http://192.168.2.156/app/svg_demo/index.html"
+                    src={streamUrl}
                     title="Live Camera Feed"
                     className="live-stream-iframe"
                     frameBorder="0"
