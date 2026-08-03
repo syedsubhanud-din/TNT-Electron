@@ -97,7 +97,7 @@ const Reports = () => {
         <section className="report-card full-width">
           <h2>Production Over Time</h2>
           <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={300} minWidth={10} minHeight={10}>
               <LineChart data={productionData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
@@ -120,7 +120,7 @@ const Reports = () => {
         <section className="report-card">
           <h2>Quality Metrics</h2>
           <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={300} minWidth={10} minHeight={10}>
               <BarChart data={productionData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />
@@ -141,7 +141,7 @@ const Reports = () => {
         <section className="report-card">
           <h2>Carton & Pallet Count Trend</h2>
           <div className="chart-container">
-            <ResponsiveContainer width="100%" height="100%">
+            <ResponsiveContainer width="100%" height={300} minWidth={10} minHeight={10}>
               <LineChart data={trendData}>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#eee" />
                 <XAxis dataKey="name" axisLine={false} tickLine={false} tick={{fill: '#94a3b8', fontSize: 12}} />

@@ -493,7 +493,7 @@ const Dashboard = ({ isActive = true }) => {
                 %
               </div>
               <div className="mini-chart">
-                <ResponsiveContainer width="100%" height="100%">
+                <ResponsiveContainer width="100%" height={220} minWidth={10} minHeight={10}>
                   <BarChart
                     data={weeklyStats}
                     margin={{ top: 5, right: 5, left: -20, bottom: 0 }}
